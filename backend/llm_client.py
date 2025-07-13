@@ -13,11 +13,11 @@ PROMPT = """
 """
 
 async def process_single_api(img: str, api_config: dict) -> Dict[str, Any]:
-    """处理单个API请求"""
+    """Processes a single API request."""
     try:
         api_key = api_config.get("apiKey")
         url = api_config.get("endpoint")
-        name = api_config.get("name", "未命名API")
+        name = api_config.get("name", "")
 
         client = AsyncOpenAI(
             api_key=api_key,
@@ -50,31 +50,31 @@ async def process_single_api(img: str, api_config: dict) -> Dict[str, Any]:
         }
     except Exception as e:
         return {
-            "name": api_config.get("name", "未命名API"),
-            "content": f"处理失败: {str(e)}",
+            "name": api_config.get("name", "Unnamed API"),
+            "content": f"Processing failed: {str(e)}",
             "success": False
         }
 
 async def Vlm_client(img: str, api_configs: List[dict]) -> str:
-    """处理多个API请求并返回结果"""
+    """Processes multiple API requests and returns the results."""
     import logging
     logger = logging.getLogger("vlm_ocr")
     
     if not api_configs or len(api_configs) == 0:
-        logger.error("错误: 未提供API配置")
-        return "错误: 未提供API配置"
+        logger.error("Error: No API configuration provided")
+        return "Error: No API configuration provided"
     
     start_time = asyncio.get_event_loop().time()
     tasks = [process_single_api(img, config) for config in api_configs]
     results = await asyncio.gather(*tasks)
     end_time = asyncio.get_event_loop().time()
     
-    logger.info(f"所有API请求处理完成，耗时: {end_time - start_time:.2f}秒")
+    logger.info(f"All API requests processed, time taken: {end_time - start_time:.2f} seconds")
 
     formatted_results = ""
     for result in results:
-        logger.info(f"API '{result['name']}' 处理{'成功' if result['success'] else '失败'}")
-        formatted_results += f"## {result['name']} 结果\n\n"
+        logger.info(f"API '{result['name']}' processed {'successfully' if result['success'] else 'failed'}")
+        formatted_results += f"## {result['name']} Results\n\n"
         formatted_results += result["content"]
         formatted_results += "\n\n---\n\n"
     

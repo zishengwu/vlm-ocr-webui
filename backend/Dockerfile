@@ -1,32 +1,33 @@
-FROM python:3.11-slim
+# FROM python:3.11-slim
+FROM docker.1ms.run/python:3.11-slim
 
-# 设置工作目录
+# Set working directory
 WORKDIR /app
 
-# 设置环境变量
+# Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app
 
-# 安装依赖
+# Install dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple -r requirements.txt
 
-# 创建非root用户
+# Create non-root user
 RUN adduser --disabled-password --gecos "" appuser
 
-# 复制应用代码
+# Copy application code
 COPY . .
 
-# 修改所有权
+# Change ownership
 RUN chown -R appuser:appuser /app
 
-# 切换到非root用户
+# Switch to non-root user
 USER appuser
 
-# 暴露端口
+# Expose port
 EXPOSE 8000
 
-# 启动应用
+# Start the application
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
