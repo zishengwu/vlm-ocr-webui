@@ -8,6 +8,13 @@ import * as Dialog from '@radix-ui/react-dialog';
 import * as Toast from '@radix-ui/react-toast';
 import { clsx } from 'clsx';
 import { Upload, FileText, Check, X, Copy, Loader2, Plus, Trash2, Download } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import 'highlight.js/styles/github-dark.css';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+
+
 
 interface ApiConfig {
   id: string;
@@ -458,7 +465,6 @@ export default function Home() {
                   <div className="text-center">
                     <p className="text-gray-700 dark:text-gray-300 font-medium">{t('upload.dragDrop')}</p>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{t('upload.supportedFormat')}</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{t('upload.supportedFormat')}</p>
                   </div>
                 )}
               </div>
@@ -583,7 +589,41 @@ export default function Home() {
                   onChange={(e) => setFinalMarkdown(e.target.value)}
                 />
                 <div className="bg-gray-50 dark:bg-gray-900 p-6 rounded-lg border border-gray-200 dark:border-gray-700 overflow-auto max-h-[60vh] mt-4">
-                  <pre className="text-sm whitespace-pre-wrap font-mono">{finalMarkdown}</pre>
+                  <div className="prose prose-sm dark:prose-invert max-w-none">
+
+                    <ReactMarkdown 
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                  code({ node, inline, className, children, ...props }) {
+                                    const match = /language-(\w+)/.exec(className || '');
+                                    return !inline && match ? (
+                                      <SyntaxHighlighter
+                                        style={vscDarkPlus}
+                                        language={match[1]}
+                                        PreTag="div"
+                                        customStyle={{ fontSize: '14px' }}
+                                        {...props}
+                                      >
+                                        {String(children).replace(/\n$/, '')}
+                                      </SyntaxHighlighter>
+                                    ) : (
+                                      <code className={className} {...props}>
+                                        {children}
+                                      </code>
+                                    );
+                                  },
+                                  img: ({ node, ...props }) => (
+                                    <img 
+                                      {...props} 
+                                      className="max-w-full h-auto my-4 rounded-lg shadow-lg"
+                                      loading="lazy"
+                                    />
+                                  ),
+                                }}
+                              >
+                                {finalMarkdown}
+                              </ReactMarkdown>
+                  </div>
                 </div>
               </div>
             ) : (
