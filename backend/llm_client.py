@@ -3,13 +3,19 @@ import asyncio
 from typing import List, Dict, Any
 
 PROMPT = """
-# Instruction
-    Extract content from the image according to the following rules:
+Extract all meaningful content from the image and format it strictly as Markdown, following these rules:
 
-    - text: Please output the text content from the image.,
-    - formula: Please write out the expression of the formula in the image using LaTeX format.,
-    - table: Please output the table in the image in LaTeX format.
-    
+1. **Text**: Extract and output all readable text in its original form. Do not add extra symbols, headers, or summaries.
+
+2. **Formulas**: If there are mathematical formulas, extract them and write them using LaTeX syntax. Wrap each formula in double dollar signs (`$$`) for display mode in Markdown.
+
+3. **Tables**: If the image contains tables, extract them and convert them into LaTeX `tabular` environments. Do not add captions, labels, or any additional description.
+
+**Output rules**:
+- Do not add any extra explanations, headers, code blocks, or comments.
+- Output only the extracted content in Markdown-compatible syntax.
+- Preserve the order and formatting as shown in the image.
+- If the image contains multiple sections, ensure each section is clearly separated in the Markdown output.
 """
 
 async def process_single_api(img: str, api_config: dict) -> Dict[str, Any]:
