@@ -60,7 +60,12 @@ const resources = {
         modelLabel: 'Model',
         modelPlaceholder: 'gpt-4-vision',
         modelPrefix: 'Model: ',
-        deleteApiConfig: 'Delete API Configuration'
+        deleteApiConfig: 'Delete API Configuration',
+        selectModel: 'Select a model',
+        customModel: 'Custom model',
+        customModelLabel: 'Custom Model Name',
+        customModelPlaceholder: 'Enter custom model name',
+        requiredFields: 'API name and endpoint URL are required'
       },
       common: {
         cancel: 'Cancel',
@@ -126,7 +131,12 @@ const resources = {
         modelLabel: '模型',
         modelPlaceholder: 'gpt-4-vision',
         modelPrefix: '模型: ',
-        deleteApiConfig: '删除API配置'
+        deleteApiConfig: '删除API配置',
+        selectModel: '选择模型',
+        customModel: '自定义模型',
+        customModelLabel: '自定义模型名称',
+        customModelPlaceholder: '输入自定义模型名称',
+        requiredFields: 'API名称和端点URL是必填项'
       },
       common: {
         cancel: '取消',

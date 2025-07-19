@@ -42,7 +42,7 @@ async def ocr_pdf(file: UploadFile = File(...), api_configs: str = Form(None)):
     pdf_document = fitz.open(stream=pdf_bytes, filetype="pdf")
     logger.info(f"PDF has {len(pdf_document)} pages")
     
-    # 解析API配置
+    # Parse API configuration
     configs = None
     try:
         if api_configs:
@@ -51,11 +51,11 @@ async def ocr_pdf(file: UploadFile = File(...), api_configs: str = Form(None)):
     except Exception as e:
         logger.error(f"Error parsing API configs: {e}")
 
-    # 创建OCR任务列表
+    # Create OCR task list
     ocr_tasks = []
     
-    # 预处理所有页面以获取base64编码的图像
-    logger.info(f"开始处理PDF文件，共 {len(pdf_document)} 页")
+    # Preprocess all pages to get base64 encoded images
+    logger.info(f"Starting to process PDF file with {len(pdf_document)} pages")
   
     base64_images = []
     for page_number in range(len(pdf_document)):
@@ -64,7 +64,7 @@ async def ocr_pdf(file: UploadFile = File(...), api_configs: str = Form(None)):
         img_bytes = pix.tobytes("png")
         base64_img = base64.b64encode(img_bytes).decode('utf-8')
         base64_images.append(base64_img)
-        logger.info(f"预处理完成: 第 {page_number+1} 页")
+        logger.info(f"Preprocessing complete: Page {page_number+1}")
  
     ocr_tasks = [mock_vlm_ocr(img, configs) for img in base64_images]
     ocr_results = await asyncio.gather(*ocr_tasks)

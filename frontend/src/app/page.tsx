@@ -24,6 +24,14 @@ interface ApiConfig {
   model: string;
 }
 
+// Predefined model options
+const MODEL_OPTIONS = [
+  'gpt-4o',
+
+  'Pro/Qwen/Qwen2.5-VL-7B-Instruct',
+  'Qwen/Qwen2.5-VL-32B-Instruct'
+];
+
 interface OcrResult {
   pageNumber: number;
   markdown: string;
@@ -37,6 +45,7 @@ export default function Home() {
   const [newApiEndpoint, setNewApiEndpoint] = useState('');
   const [newApiKey, setNewApiKey] = useState('');
   const [newApiModel, setNewApiModel] = useState('');
+  const [customModel, setCustomModel] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [results, setResults] = useState<OcrResult[]>([]);
@@ -45,6 +54,7 @@ export default function Home() {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [isAddApiDialogOpen, setIsAddApiDialogOpen] = useState(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Add toast animations when component mounts (client-side only)
@@ -73,10 +83,55 @@ export default function Home() {
     };
   }, [i18n]);
 
+  // Load default configuration from environment variables
+  useEffect(() => {
+    // Check if there are existing configurations, if not, load from environment variables
+
+    console.log('apiConfigs',apiConfigs)
+    // if (apiConfigs.length === 0) {
+      console.log('Jinlaile')
+      const endpoint = process.env.NEXT_PUBLIC_API_ENDPOINT || '';
+      const apiKey = process.env.NEXT_PUBLIC_API_KEY || '';
+      console.log('endpoint', endpoint)
+      if (endpoint) {
+        const defaultConfig: ApiConfig = {
+          id: 'api-default',
+          name: 'Default API',
+          endpoint,
+          apiKey,
+          model: process.env.NEXT_PUBLIC_DEFAULT_MODEL || 'gpt-4-vision-preview'
+        };
+        
+        setApiConfigs([defaultConfig]);
+        console.log('Loaded default configuration from environment variables');
+      }
+    // }
+  }, [apiConfigs.length]);
+
   // Add a new API configuration
   const addApiConfig = () => {
     if (!newApiName || !newApiEndpoint) {
-      setToastMessage('API名称和端点URL是必填项');
+      setToastMessage(t('apiConfig.requiredFields'));
+      setShowToast(true);
+      return;
+    }
+    
+    // Determine which model to use
+    let modelToUse = '';
+    if (newApiModel === 'custom') {
+      // Use the custom model input
+      if (!customModel.trim()) {
+        setToastMessage(t('apiConfig.modelRequired'));
+        setShowToast(true);
+        return;
+      }
+      modelToUse = customModel;
+    } else if (newApiModel) {
+      // Use the selected model from dropdown
+      modelToUse = newApiModel;
+    } else {
+      // No model selected
+      setToastMessage(t('apiConfig.modelRequired'));
       setShowToast(true);
       return;
     }
@@ -86,7 +141,7 @@ export default function Home() {
       name: newApiName || `API ${apiConfigs.length + 1}`,
       endpoint: newApiEndpoint,
       apiKey: newApiKey,
-      model: newApiModel
+      model: modelToUse
     };
     
     setApiConfigs([...apiConfigs, newConfig]);
@@ -94,10 +149,39 @@ export default function Home() {
     setNewApiEndpoint('');
     setNewApiKey('');
     setNewApiModel('');
+    setCustomModel('');
     setIsAddApiDialogOpen(false);
     
     setToastMessage(t('apiConfig.added'));
     setShowToast(true);
+  };
+  
+  // Handle dialog open state change
+  const handleDialogOpenChange = (open: boolean) => {
+    setIsAddApiDialogOpen(open);
+    
+    // If dialog is opening, set default values from environment variables
+    if (open) {
+      console.log('默认的参数为',process.env.NEXT_PUBLIC_API_ENDPOINT)
+      setNewApiEndpoint(process.env.NEXT_PUBLIC_API_ENDPOINT || '');
+      setNewApiKey(process.env.NEXT_PUBLIC_API_KEY || '');
+      
+      const defaultModel = process.env.NEXT_PUBLIC_DEFAULT_MODEL || '';
+      if (defaultModel) {
+        if (MODEL_OPTIONS.includes(defaultModel)) {
+          // If the default model is in our predefined list, select it from dropdown
+          setNewApiModel(defaultModel);
+          setCustomModel('');
+        } else {
+          // If the default model is not in our list, use it as a custom model
+          setNewApiModel('custom');
+          setCustomModel(defaultModel);
+        }
+      } else {
+        setNewApiModel('');
+        setCustomModel('');
+      }
+    }
   };
 
   // Remove an API configuration
@@ -128,15 +212,15 @@ export default function Home() {
     setResults([]);
     
     try {
-      // 使用实际的后端API调用替换模拟数据
+      // Use actual backend API call to replace mock data
       const formData = new FormData();
       formData.append('file', selectedFile);
       formData.append('api_configs', JSON.stringify(apiConfigs));
       
-      // 使用第一个API配置的endpoint作为基础URL，或者使用本地后端地址
+      // Use the first API configuration endpoint as the base URL, or use the local backend address
       const baseUrl = process.env.NEXT_PUBLIC_API_URL;
-      console.log('使用API地址:', baseUrl);
-      console.log('发送API配置:', JSON.stringify(apiConfigs));
+      console.log('Using API address:', baseUrl);
+      console.log('Sending API configuration:', JSON.stringify(apiConfigs));
       
       const response = await fetch(`${baseUrl}/api/ocr`, {
         method: 'POST',
@@ -148,40 +232,41 @@ export default function Home() {
       }
       
       const data = await response.json();
-      console.log('收到API响应:', data);
+      console.log('Received API response:', data);
       
-      // 将后端返回的结果转换为前端需要的格式
+      // Convert backend results to the format needed by the frontend
       const apiResults: OcrResult[] = [];
       if (data.results && Array.isArray(data.results)) {
-        // 处理每个页面的结果
+        // Process results for each page
         data.results.forEach((markdown: string, index: number) => {
-          // 检查是否包含API结果标记
-          if (markdown.includes('## ') && markdown.includes(' 结果')) {
-            // 分割不同API的结果
+          // Check if it contains API result markers
+          // Match both English "Results" (from backend) and Chinese "结果" (for backward compatibility)
+          if (markdown.includes('## ') && (markdown.includes(' Results') || markdown.includes(' 结果'))) {
+            // Split different API results
             const sections = markdown.split('---').filter(section => section.trim());
             
             for (const section of sections) {
-              // 提取API名称
-              const nameMatch = section.match(/## ([^\n]+) 结果/);
+              // Extract API name - match both English and Chinese result markers
+              const nameMatch = section.match(/## ([^\n]+) (Results|结果)/);
               if (nameMatch) {
                 const apiName = nameMatch[1];
-                // 找到对应的API配置
+                // Find corresponding API configuration
                 const apiConfig = apiConfigs.find(config => config.name === apiName);
                 if (apiConfig) {
-                  // 移除标题，只保留内容
-                  const content = section.replace(/## [^\n]+ 结果\n\n/, '');
+                  // Remove title, keep only content - handle both English and Chinese markers
+                  const content = section.replace(/## [^\n]+ (Results|结果)\n\n/, '');
                   apiResults.push({
                     pageNumber: index,
                     markdown: content.trim(),
                     apiId: apiConfig.id
                   });
                 } else {
-                  // 如果找不到匹配的API配置，使用第一个API配置
+                  // If matching API configuration not found, use the first API configuration
                   if (apiConfigs.length > 0) {
-                    console.warn(`未找到名为"${apiName}"的API配置，使用第一个API配置`);
+                    console.warn(`API named "${apiName}" not found, using first API configuration`);
                     apiResults.push({
                       pageNumber: index,
-                      markdown: section.replace(/## [^\n]+ 结果\n\n/, '').trim(),
+                      markdown: section.replace(/## [^\n]+ (Results|结果)\n\n/, '').trim(),
                       apiId: apiConfigs[0].id
                     });
                   }
@@ -189,7 +274,7 @@ export default function Home() {
               }
             }
           } else {
-            // 如果没有API结果标记，使用第一个API配置
+            // If no API result markers, use the first API configuration
             if (apiConfigs.length > 0) {
               apiResults.push({
                 pageNumber: index,
@@ -201,7 +286,7 @@ export default function Home() {
         });
       }
       
-      // 按页码排序结果
+      // Sort results by page number
       apiResults.sort((a, b) => a.pageNumber - b.pageNumber);
       setResults(apiResults);
       
@@ -256,18 +341,18 @@ export default function Home() {
 
   // Download markdown file
   const downloadMarkdown = () => {
-    // 创建Blob对象
+    // Create Blob object
     const blob = new Blob([finalMarkdown], { type: 'text/markdown' });
-    // 创建URL
+    // Create URL
     const url = URL.createObjectURL(blob);
-    // 创建临时a标签
+    // Create temporary a tag
     const a = document.createElement('a');
     a.href = url;
     a.download = `ocr-result-${new Date().toISOString().slice(0, 10)}.md`;
-    // 触发点击
+    // Trigger click
     document.body.appendChild(a);
     a.click();
-    // 清理
+    // Cleanup
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     
@@ -330,7 +415,7 @@ export default function Home() {
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-semibold">{t('apiConfig.title')}</h2>
-                <Dialog.Root open={isAddApiDialogOpen} onOpenChange={setIsAddApiDialogOpen}>
+                <Dialog.Root open={isAddApiDialogOpen} onOpenChange={handleDialogOpenChange}>
                   <Dialog.Trigger asChild>
                     <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
                       <Plus size={16} />
@@ -374,14 +459,42 @@ export default function Home() {
                         </div>
                         <div>
                           <label className="block text-sm font-medium mb-1">{t('apiConfig.modelLabel')}</label>
-                          <input
-                            type="text"
-                            value={newApiModel}
-                            onChange={(e) => setNewApiModel(e.target.value)}
+                          <select
+                            value={newApiModel === 'custom' ? 'custom' : MODEL_OPTIONS.includes(newApiModel) ? newApiModel : ''}
+                            onChange={(e) => {
+                              if (e.target.value === 'custom') {
+                                // If custom is selected and we have a model value that's not in MODEL_OPTIONS, keep it as custom value
+                                if (newApiModel && !MODEL_OPTIONS.includes(newApiModel)) {
+                                  setCustomModel(newApiModel);
+                                }
+                                setNewApiModel('custom');
+                              } else {
+                                setNewApiModel(e.target.value);
+                                setCustomModel('');
+                              }
+                            }}
                             className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600"
-                            placeholder={t('apiConfig.modelPlaceholder')}
-                          />
+                          >
+                            <option value="">{t('apiConfig.selectModel')}</option>
+                            {MODEL_OPTIONS.map(model => (
+                              <option key={model} value={model}>{model}</option>
+                            ))}
+                            <option value="custom">{t('apiConfig.customModel')}</option>
+                          </select>
                         </div>
+                        
+                        {newApiModel === 'custom' && (
+                          <div>
+                            <label className="block text-sm font-medium mb-1">{t('apiConfig.customModelLabel')}</label>
+                            <input
+                              type="text"
+                              value={customModel}
+                              onChange={(e) => setCustomModel(e.target.value)}
+                              className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600"
+                              placeholder={t('apiConfig.customModelPlaceholder')}
+                            />
+                          </div>
+                        )}
                       </div>
                       <div className="flex justify-end gap-3 mt-6">
                         <Dialog.Close asChild>
