@@ -25,13 +25,16 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    args:
+      - NEXT_PUBLIC_API_ENDPOINT=http://backend:8000
+      - NEXT_PUBLIC_API_KEY=your-api-key-here
+      - NEXT_PUBLIC_API_NAME=Default-API
+      - NEXT_PUBLIC_DEFAULT_MODEL=gpt-4o
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+      - NEXT_PUBLIC_MODEL_OPTIONS=["gpt-4o","Pro/Qwen/Qwen2.5-VL-7B-Instruct","Qwen/Qwen2.5-VL-32B-Instruct"]
     container_name: vlm-ocr-frontend
     ports:
       - "3000:3000"
-    volumes:
-      - ./frontend/.env:/app/.env:ro
-    environment:
-      - NODE_ENV=production
     depends_on:
       - backend
     healthcheck:

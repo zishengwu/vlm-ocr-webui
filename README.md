@@ -9,6 +9,7 @@ VLM-OCR is a powerful document processing tool that utilizes advanced Vision Lan
 - **Structured Output**: Automatically organizes the extracted document content into clear, readable Markdown format, preserving the original layout and semantic structure.
 - **Web Interface**: Provides an intuitive and user-friendly web interface for users to easily upload PDF files and view recognition progress and results in real-time.
 - **One-Click Deployment with Docker**: Allows for one-click startup of the entire application using Docker Compose, greatly simplifying deployment and maintenance.
+- **Flexible Configuration**: Supports environment variable configuration for API endpoints, keys, and model options with visual API key management.
 - **Scalability**: The backend is built with FastAPI, supporting high-concurrency processing, while the frontend uses Next.js to provide a smooth user experience.
 
 ## 🛠️ Tech Stack
@@ -36,27 +37,61 @@ We highly recommend using Docker for deployment, as it is the simplest and quick
     cd vlm-ocr
     ```
 
-2.  **Configure API Keys**
+2.  **Configure Environment Variables (Optional)**
 
-    In the `docker-compose.yml` file at the project root, you need to configure your large model API keys. Find the `environment` section of the `backend` service and add your key information, for example:
+    **For Docker Deployment (Recommended):**
 
-    ```yaml
-    services:
-      backend:
-        # ... (other configurations)
-        environment:
-          - PYTHONUNBUFFERED=1
-          - MAX_WORKERS=4
-          # Add your API key and endpoint here
-          - OPENAI_API_KEY=sk-your-openai-api-key
-          - OPENAI_BASE_URL=https://api.openai.com/v1
+    The application uses environment variables defined directly in `docker-compose.yml` with sensible defaults. You can override these values by setting environment variables on your host system:
+
+    ```bash
+    # Optional: Set custom values before running docker-compose
+    export NEXT_PUBLIC_API_KEY="your-actual-api-key"
+    export NEXT_PUBLIC_API_ENDPOINT="https://your-api-endpoint.com"
     ```
-    *Note: You will need to modify the environment variable names and values according to your large model service provider.*
+
+    **For Local Development:**
+
+    If you want to run the application locally (outside Docker), copy the example environment file:
+
+    ```bash
+    cp .env.example .env
+    ```
+
+    Then edit the `.env` file to configure your API settings:
+    ```bash
+    # Frontend Environment Variables
+    NEXT_PUBLIC_API_ENDPOINT=https://api.openai.com/v1/chat/completions
+    NEXT_PUBLIC_API_KEY=sk-your-openai-api-key
+    NEXT_PUBLIC_API_NAME=OpenAI API
+    NEXT_PUBLIC_DEFAULT_MODEL=gpt-4o
+    NEXT_PUBLIC_API_URL=http://backend:8000
+    NEXT_PUBLIC_MODEL_OPTIONS=["gpt-4o","gpt-4-vision-preview","claude-3-opus"]
+    
+    # Backend Environment Variables
+    MAX_WORKERS=4
+    PYTHONUNBUFFERED=1
+    ```
+    
+    **Environment Variables Explanation:**
+    - `NEXT_PUBLIC_API_ENDPOINT`: The API endpoint URL for your LLM service
+    - `NEXT_PUBLIC_API_KEY`: Your API key for the LLM service
+    - `NEXT_PUBLIC_API_NAME`: Display name for the default API configuration
+    - `NEXT_PUBLIC_DEFAULT_MODEL`: Default model to use
+    - `NEXT_PUBLIC_MODEL_OPTIONS`: Available model options (JSON array format)
+    - `NEXT_PUBLIC_API_URL`: Backend API URL for frontend communication
 
 3.  **Build and start the containers**
     ```bash
     docker-compose up --build -d
     ```
+
+    This will:
+    - Build the backend and frontend Docker images
+    - Start both services with default environment variables
+    - The backend will be available at `http://localhost:8000`
+    - The frontend will be available at `http://localhost:3000`
+
+    **Note:** No `.env` file is required for Docker deployment as all environment variables are defined in `docker-compose.yml` with sensible defaults.
 
 4.  **Access the application**
     - Frontend application: [http://localhost:3000](http://localhost:3000)
@@ -64,7 +99,7 @@ We highly recommend using Docker for deployment, as it is the simplest and quick
 
 ### Local Development Environment
 
-If you prefer to develop and debug locally, follow these steps:
+If you prefer to run the application locally without Docker:
 
 #### **Prerequisites**
 
@@ -82,13 +117,13 @@ If you prefer to develop and debug locally, follow these steps:
 2.  Configure environment variables:
     Create a `.env` file in the `backend` directory and add the following:
     ```
-    OPENAI_API_KEY=sk-your-openai-api-key
-    OPENAI_BASE_URL=https://api.openai.com/v1
+    MAX_WORKERS=4
+    PYTHONUNBUFFERED=1
     ```
 
 3.  Start the backend service:
     ```bash
-    uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    python main.py
     ```
 
 #### **Frontend Startup**
@@ -102,14 +137,16 @@ If you prefer to develop and debug locally, follow these steps:
 2.  Configure environment variables:
     Create a `.env.local` file in the `frontend` directory by copying the example file:
     ```bash
-    cp .env.local.example .env.local
+    cp ../.env.example .env.local
     ```
     Then edit the `.env.local` file to set your API configuration:
     ```
     NEXT_PUBLIC_API_URL=http://localhost:8000
-    NEXT_PUBLIC_API_ENDPOINT=https://api.openai.com/v1/chat/completions
-    NEXT_PUBLIC_API_KEY=sk-your-api-key-here
-    NEXT_PUBLIC_DEFAULT_MODEL=gpt-4-vision-preview
+    NEXT_PUBLIC_API_ENDPOINT=http://localhost:8000
+    NEXT_PUBLIC_API_KEY=your-api-key-here
+    NEXT_PUBLIC_API_NAME=Default API
+    NEXT_PUBLIC_DEFAULT_MODEL=gpt-4o
+    NEXT_PUBLIC_MODEL_OPTIONS=["gpt-4o","Pro/Qwen/Qwen2.5-VL-7B-Instruct","Qwen/Qwen2.5-VL-32B-Instruct"]
     ```
 
 3.  Start the frontend development server:
@@ -119,12 +156,29 @@ If you prefer to develop and debug locally, follow these steps:
 
 4.  Access the application: [http://localhost:3000](http://localhost:3000)
 
+    **Note:** The `.env.local` file is only needed for local development. Docker deployment uses environment variables defined in `docker-compose.yml`.
+
 ## 📖 How to Use
 
-1.  Open your browser and go to [http://localhost:3000](http://localhost:3000).
-2.  Click the upload area to select a PDF file.
-3.  The system will automatically process the PDF and display the recognition progress and results in real-time.
-4.  In the results area, you can view, copy, or download the recognized content in Markdown format.
+1.  **Access the Application**: Open your browser and go to [http://localhost:3000](http://localhost:3000).
+
+2.  **Configure API Settings**: 
+    - If you have configured environment variables, the default API configuration will be automatically loaded.
+    - Click the "Add API Configuration" button to add additional API endpoints.
+    - Use the eye icon to toggle API key visibility for security.
+    - Select from predefined models or enter a custom model name.
+
+3.  **Upload and Process**: 
+    - Click the upload area to select a PDF file.
+    - The system will automatically process the PDF using all configured APIs.
+    - View the recognition progress and results in real-time.
+
+4.  **Review Results**: 
+    - Compare results from different API configurations.
+    - Select the best result for each page.
+    - Combine selected results into a final document.
+
+5.  **Export**: In the results area, you can view, copy, or download the recognized content in Markdown format.
 
 ## 🤝 Contributing
 

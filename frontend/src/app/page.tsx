@@ -2,19 +2,12 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-// import Image from 'next/image';
 import * as Tabs from '@radix-ui/react-tabs';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Toast from '@radix-ui/react-toast';
 import { clsx } from 'clsx';
-import { Upload, FileText, Check, X, Copy, Loader2, Plus, Trash2, Download } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import 'highlight.js/styles/github-dark.css';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-
-
+import { Upload, FileText, Check, X, Copy, Loader2, Plus, Trash2, Download, Eye, EyeOff } from 'lucide-react';
+import MarkdownViewer from '@/components/MarkdownViewer';
 
 interface ApiConfig {
   id: string;
@@ -24,13 +17,24 @@ interface ApiConfig {
   model: string;
 }
 
-// Predefined model options
-const MODEL_OPTIONS = [
-  'gpt-4o',
+// Get model options from environment variables or use defaults
+const getModelOptions = () => {
+  const envModels = process.env.NEXT_PUBLIC_MODEL_OPTIONS;
+  if (envModels) {
+    try {
+      return JSON.parse(envModels);
+    } catch (e) {
+      console.warn('Failed to parse NEXT_PUBLIC_MODEL_OPTIONS, using defaults');
+    }
+  }
+  return [
+    'gpt-4o',
+    'Pro/Qwen/Qwen2.5-VL-7B-Instruct',
+    'Qwen/Qwen2.5-VL-32B-Instruct'
+  ];
+};
 
-  'Pro/Qwen/Qwen2.5-VL-7B-Instruct',
-  'Qwen/Qwen2.5-VL-32B-Instruct'
-];
+const MODEL_OPTIONS = getModelOptions();
 
 interface OcrResult {
   pageNumber: number;
@@ -44,6 +48,7 @@ export default function Home() {
   const [newApiName, setNewApiName] = useState('');
   const [newApiEndpoint, setNewApiEndpoint] = useState('');
   const [newApiKey, setNewApiKey] = useState('');
+  const [showApiKey, setShowApiKey] = useState(false);
   const [newApiModel, setNewApiModel] = useState('');
   const [customModel, setCustomModel] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -85,28 +90,25 @@ export default function Home() {
 
   // Load default configuration from environment variables
   useEffect(() => {
-    // Check if there are existing configurations, if not, load from environment variables
-
-    console.log('apiConfigs',apiConfigs)
-    // if (apiConfigs.length === 0) {
-      console.log('Jinlaile')
+    // Only load default config if no configs exist
+    if (apiConfigs.length === 0) {
       const endpoint = process.env.NEXT_PUBLIC_API_ENDPOINT || '';
       const apiKey = process.env.NEXT_PUBLIC_API_KEY || '';
-      console.log('endpoint', endpoint)
+      
       if (endpoint) {
         const defaultConfig: ApiConfig = {
           id: 'api-default',
-          name: 'Default API',
+          name: process.env.NEXT_PUBLIC_API_NAME || 'Default API',
           endpoint,
           apiKey,
-          model: process.env.NEXT_PUBLIC_DEFAULT_MODEL || 'gpt-4-vision-preview'
+          model: process.env.NEXT_PUBLIC_DEFAULT_MODEL || 'gpt-4o'
         };
         
         setApiConfigs([defaultConfig]);
-        console.log('Loaded default configuration from environment variables');
+        console.log('Loaded default configuration from environment variables:', defaultConfig);
       }
-    // }
-  }, [apiConfigs.length]);
+    }
+  }, []);
 
   // Add a new API configuration
   const addApiConfig = () => {
@@ -162,7 +164,7 @@ export default function Home() {
     
     // If dialog is opening, set default values from environment variables
     if (open) {
-      console.log('默认的参数为',process.env.NEXT_PUBLIC_API_ENDPOINT)
+      setNewApiName(process.env.NEXT_PUBLIC_API_NAME || '');
       setNewApiEndpoint(process.env.NEXT_PUBLIC_API_ENDPOINT || '');
       setNewApiKey(process.env.NEXT_PUBLIC_API_KEY || '');
       
@@ -449,13 +451,22 @@ export default function Home() {
                         </div>
                         <div>
                           <label className="block text-sm font-medium mb-1">{t('apiConfig.apiKeyLabel')}</label>
-                          <input
-                            type="password"
-                            value={newApiKey}
-                            onChange={(e) => setNewApiKey(e.target.value)}
-                            className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600"
-                            placeholder={t('apiConfig.apiKeyPlaceholder')}
-                          />
+                          <div className="relative">
+                            <input
+                              type={showApiKey ? "text" : "password"}
+                              value={newApiKey}
+                              onChange={(e) => setNewApiKey(e.target.value)}
+                              className="w-full p-2 pr-10 border rounded-md dark:bg-gray-700 dark:border-gray-600"
+                              placeholder={t('apiConfig.apiKeyPlaceholder')}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowApiKey(!showApiKey)}
+                              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                            >
+                              {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                            </button>
+                          </div>
                         </div>
                         <div>
                           <label className="block text-sm font-medium mb-1">{t('apiConfig.modelLabel')}</label>
@@ -475,8 +486,8 @@ export default function Home() {
                             }}
                             className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600"
                           >
-                            <option value="">{t('apiConfig.selectModel')}</option>
-                            {MODEL_OPTIONS.map(model => (
+                            {/* <option value="">{t('apiConfig.selectModel')}</option> */}
+                            {MODEL_OPTIONS.map((model: string) => (
                               <option key={model} value={model}>{model}</option>
                             ))}
                             <option value="custom">{t('apiConfig.customModel')}</option>
@@ -704,38 +715,7 @@ export default function Home() {
                 <div className="bg-gray-50 dark:bg-gray-900 p-6 rounded-lg border border-gray-200 dark:border-gray-700 overflow-auto max-h-[60vh] mt-4">
                   <div className="prose prose-sm dark:prose-invert max-w-none">
 
-                    <ReactMarkdown 
-                                remarkPlugins={[remarkGfm]}
-                                components={{
-                                  code({ node, inline, className, children, ...props }) {
-                                    const match = /language-(\w+)/.exec(className || '');
-                                    return !inline && match ? (
-                                      <SyntaxHighlighter
-                                        style={vscDarkPlus}
-                                        language={match[1]}
-                                        PreTag="div"
-                                        customStyle={{ fontSize: '14px' }}
-                                        {...props}
-                                      >
-                                        {String(children).replace(/\n$/, '')}
-                                      </SyntaxHighlighter>
-                                    ) : (
-                                      <code className={className} {...props}>
-                                        {children}
-                                      </code>
-                                    );
-                                  },
-                                  img: ({ node, ...props }) => (
-                                    <img 
-                                      {...props} 
-                                      className="max-w-full h-auto my-4 rounded-lg shadow-lg"
-                                      loading="lazy"
-                                    />
-                                  ),
-                                }}
-                              >
-                                {finalMarkdown}
-                              </ReactMarkdown>
+                  <MarkdownViewer content={finalMarkdown} />
                   </div>
                 </div>
               </div>
