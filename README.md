@@ -33,56 +33,35 @@ We highly recommend using Docker for deployment, as it is the simplest and quick
 
 1.  **Clone the project**
     ```bash
-    git clone https://github.com/your-username/vlm-ocr.git
-    cd vlm-ocr
+    git clone https://github.com/zishengwu/vlm-ocr-webui.git
+    cd vlm-ocr-webui
     ```
 
-2.  **Configure Environment Variables (Optional)**
+2.  **Configure Environment Variables**
 
-    **For Docker Deployment (Recommended):**
-
-    The application uses environment variables defined directly in `docker-compose.yml` with sensible defaults. You can override these values by setting environment variables on your host system:
-
-    ```bash
-    # Optional: Set custom values before running docker-compose
-    export NEXT_PUBLIC_API_KEY="your-actual-api-key"
-    export NEXT_PUBLIC_API_ENDPOINT="https://your-api-endpoint.com"
-    ```
-
-    **For Local Development:**
-
-    If you want to run the application locally (outside Docker), copy the example environment file:
-
-    ```bash
-    cp .env.example .env
-    ```
-
-    Then edit the `.env` file to configure your API settings:
+  
+    Then edit the `docker-compose.yml` file to configure your API settings:
     ```bash
     # Frontend Environment Variables
-    NEXT_PUBLIC_API_ENDPOINT=https://api.openai.com/v1/chat/completions
+    NEXT_PUBLIC_API_ENDPOINT=https://api.openai.com/v1
     NEXT_PUBLIC_API_KEY=sk-your-openai-api-key
-    NEXT_PUBLIC_API_NAME=OpenAI API
+    NEXT_PUBLIC_API_NAME=OpenAI-API
     NEXT_PUBLIC_DEFAULT_MODEL=gpt-4o
-    NEXT_PUBLIC_API_URL=http://backend:8000
-    NEXT_PUBLIC_MODEL_OPTIONS=["gpt-4o","gpt-4-vision-preview","claude-3-opus"]
-    
-    # Backend Environment Variables
-    MAX_WORKERS=4
-    PYTHONUNBUFFERED=1
+    NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
+    NEXT_PUBLIC_MODEL_OPTIONS=["gpt-4o","gpt-4.1"]
     ```
     
     **Environment Variables Explanation:**
-    - `NEXT_PUBLIC_API_ENDPOINT`: The API endpoint URL for your LLM service
+    - `NEXT_PUBLIC_API_ENDPOINT`: The API endpoint URL for the LLM service
     - `NEXT_PUBLIC_API_KEY`: Your API key for the LLM service
     - `NEXT_PUBLIC_API_NAME`: Display name for the default API configuration
     - `NEXT_PUBLIC_DEFAULT_MODEL`: Default model to use
     - `NEXT_PUBLIC_MODEL_OPTIONS`: Available model options (JSON array format)
-    - `NEXT_PUBLIC_API_URL`: Backend API URL for frontend communication
+    - `NEXT_PUBLIC_BACKEND_URL`: Backend API URL for frontend communication
 
 3.  **Build and start the containers**
     ```bash
-    docker-compose up --build -d
+    docker-compose up -d
     ```
 
     This will:
@@ -91,7 +70,6 @@ We highly recommend using Docker for deployment, as it is the simplest and quick
     - The backend will be available at `http://localhost:8000`
     - The frontend will be available at `http://localhost:3000`
 
-    **Note:** No `.env` file is required for Docker deployment as all environment variables are defined in `docker-compose.yml` with sensible defaults.
 
 4.  **Access the application**
     - Frontend application: [http://localhost:3000](http://localhost:3000)
@@ -114,16 +92,9 @@ If you prefer to run the application locally without Docker:
     pip install -r requirements.txt
     ```
 
-2.  Configure environment variables:
-    Create a `.env` file in the `backend` directory and add the following:
-    ```
-    MAX_WORKERS=4
-    PYTHONUNBUFFERED=1
-    ```
-
-3.  Start the backend service:
+2.  Start the backend service:
     ```bash
-    python main.py
+    uvicorn main:app --host 0.0.0.0 --port 8000
     ```
 
 #### **Frontend Startup**
@@ -137,16 +108,16 @@ If you prefer to run the application locally without Docker:
 2.  Configure environment variables:
     Create a `.env.local` file in the `frontend` directory by copying the example file:
     ```bash
-    cp ../.env.example .env.local
+    cp .env.example .env.local
     ```
     Then edit the `.env.local` file to set your API configuration:
     ```
-    NEXT_PUBLIC_API_URL=http://localhost:8000
-    NEXT_PUBLIC_API_ENDPOINT=http://localhost:8000
-    NEXT_PUBLIC_API_KEY=your-api-key-here
-    NEXT_PUBLIC_API_NAME=Default API
+    NEXT_PUBLIC_API_ENDPOINT=https://api.openai.com/v1
+    NEXT_PUBLIC_API_KEY=sk-your-openai-api-key
+    NEXT_PUBLIC_API_NAME=OpenAI-API
     NEXT_PUBLIC_DEFAULT_MODEL=gpt-4o
-    NEXT_PUBLIC_MODEL_OPTIONS=["gpt-4o","Pro/Qwen/Qwen2.5-VL-7B-Instruct","Qwen/Qwen2.5-VL-32B-Instruct"]
+    NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
+    NEXT_PUBLIC_MODEL_OPTIONS=["gpt-4o","gpt-4.1"]
     ```
 
 3.  Start the frontend development server:

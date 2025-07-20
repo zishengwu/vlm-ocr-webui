@@ -24,7 +24,7 @@ const getModelOptions = () => {
     try {
       return JSON.parse(envModels);
     } catch (e) {
-      console.warn('Failed to parse NEXT_PUBLIC_MODEL_OPTIONS, using defaults');
+      console.warn('Failed to parse NEXT_PUBLIC_MODEL_OPTIONS, using defaults：', e);
     }
   }
   return [
@@ -220,7 +220,7 @@ export default function Home() {
       formData.append('api_configs', JSON.stringify(apiConfigs));
       
       // Use the first API configuration endpoint as the base URL, or use the local backend address
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+      const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
       console.log('Using API address:', baseUrl);
       console.log('Sending API configuration:', JSON.stringify(apiConfigs));
       

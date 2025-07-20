@@ -9,6 +9,7 @@ VLM-OCR 是一个强大的文档处理工具，它利用先进的视觉语言模
 - **结构化输出**: 将提取的文档内容自动整理为清晰、易读的Markdown格式，保留原始文档的布局和语义结构。
 - **Web界面**: 提供直观易用的Web界面，用户可轻松上传PDF文件、实时查看识别进度和结果。
 - **Docker一键部署**: 通过 Docker Compose，可以一键启动整个应用，极大简化了部署和维护流程。
+- **灵活配置**: 支持通过环境变量配置API端点、密钥和模型选项，提供可视化的API密钥管理功能。
 - **可扩展性**: 后端采用FastAPI框架，支持高并发处理；前端采用Next.js，提供流畅的用户体验。
 
 ## 🛠️ 技术栈
@@ -32,31 +33,41 @@ VLM-OCR 是一个强大的文档处理工具，它利用先进的视觉语言模
 
 1.  **克隆项目**
     ```bash
-    git clone https://github.com/your-username/vlm-ocr.git
-    cd vlm-ocr
+    git clone https://github.com/zishengwu/vlm-ocr-webui.git
+    cd vlm-ocr-webui
     ```
 
-2.  **配置API密钥**
+2.  **配置环境变量**
 
-    在项目根目录下的 `docker-compose.yml` 文件中，你需要配置你的大模型API密钥。找到 `backend` 服务的 `environment` 部分，添加你的密钥信息，例如：
-
-    ```yaml
-    services:
-      backend:
-        # ... (其他配置)
-        environment:
-          - PYTHONUNBUFFERED=1
-          - MAX_WORKERS=4
-          # 在这里添加你的API密钥和终点
-          - OPENAI_API_KEY=sk-your-openai-api-key
-          - OPENAI_BASE_URL=https://api.openai.com/v1
+    编辑 `docker-compose.yml` 文件来配置你的API设置：
+    ```bash
+    # 前端环境变量
+    NEXT_PUBLIC_API_ENDPOINT=https://api.openai.com/v1
+    NEXT_PUBLIC_API_KEY=sk-your-openai-api-key
+    NEXT_PUBLIC_API_NAME=OpenAI-API
+    NEXT_PUBLIC_DEFAULT_MODEL=gpt-4o
+    NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
+    NEXT_PUBLIC_MODEL_OPTIONS=["gpt-4o","gpt-4.1"]
     ```
-    *请注意：你需要根据你所使用的大模型服务商，修改环境变量的名称和值。*
+    
+    **环境变量说明：**
+    - `NEXT_PUBLIC_API_ENDPOINT`: 大语言模型服务的API端点URL
+    - `NEXT_PUBLIC_API_KEY`: 大语言模型服务的API密钥
+    - `NEXT_PUBLIC_API_NAME`: 默认API配置的显示名称
+    - `NEXT_PUBLIC_DEFAULT_MODEL`: 默认使用的模型
+    - `NEXT_PUBLIC_MODEL_OPTIONS`: 可用的模型选项（JSON数组格式）
+    - `NEXT_PUBLIC_BACKEND_URL`: 前端与后端通信的API URL
 
 3.  **构建并启动容器**
     ```bash
-    docker-compose up --build -d
+    docker-compose up -d
     ```
+
+    这将会：
+    - 构建后端和前端的Docker镜像
+    - 使用默认环境变量启动两个服务
+    - 后端服务将在 `http://localhost:8000`
+    - 前端服务将在 `http://localhost:3000`
 
 4.  **访问应用**
     - 前端应用: [http://localhost:3000](http://localhost:3000)
@@ -64,7 +75,7 @@ VLM-OCR 是一个强大的文档处理工具，它利用先进的视觉语言模
 
 ### 本地开发环境
 
-如果你希望在本地进行开发和调试，可以按照以下步骤操作：
+如果你希望在不使用Docker的情况下本地运行应用：
 
 #### **前提条件**
 
@@ -79,16 +90,9 @@ VLM-OCR 是一个强大的文档处理工具，它利用先进的视觉语言模
     pip install -r requirements.txt
     ```
 
-2.  配置环境变量：
-    在 `backend` 目录下创建一个 `.env` 文件，并添加以下内容：
-    ```
-    OPENAI_API_KEY=sk-your-openai-api-key
-    OPENAI_BASE_URL=https://api.openai.com/v1
-    ```
-
-3.  启动后端服务：
+2.  启动后端服务：
     ```bash
-    uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    uvicorn main:app --host 0.0.0.0 --port 8000
     ```
 
 #### **前端启动**
@@ -99,19 +103,51 @@ VLM-OCR 是一个强大的文档处理工具，它利用先进的视觉语言模
     npm install
     ```
 
-2.  启动前端开发服务器：
+2.  配置环境变量：
+    通过复制示例文件在 `frontend` 目录下创建 `.env.local` 文件：
+    ```bash
+    cp .env.example .env.local
+    ```
+    然后编辑 `.env.local` 文件来设置你的API配置：
+    ```
+    NEXT_PUBLIC_API_ENDPOINT=https://api.openai.com/v1
+    NEXT_PUBLIC_API_KEY=sk-your-openai-api-key
+    NEXT_PUBLIC_API_NAME=OpenAI-API
+    NEXT_PUBLIC_DEFAULT_MODEL=gpt-4o
+    NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
+    NEXT_PUBLIC_MODEL_OPTIONS=["gpt-4o","gpt-4.1"]
+    ```
+
+3.  启动前端开发服务器：
     ```bash
     npm run dev
     ```
 
-3.  访问应用: [http://localhost:3000](http://localhost:3000)
+4.  访问应用: [http://localhost:3000](http://localhost:3000)
+
+    **注意：** `.env.local` 文件仅用于本地开发。Docker部署使用 `docker-compose.yml` 中定义的环境变量。
 
 ## 📖 使用方法
 
-1.  打开浏览器，访问 [http://localhost:3000](http://localhost:3000)。
-2.  点击上传区域，选择一个PDF文件。
-3.  系统会自动处理PDF，并实时显示识别进度和结果。
-4.  在结果区域，你可以查看、复制或下载Markdown格式的识别内容。
+1.  **访问应用**: 打开浏览器，访问 [http://localhost:3000](http://localhost:3000)。
+
+2.  **配置API设置**: 
+    - 如果你已经配置了环境变量，默认的API配置将自动加载。
+    - 点击"添加API配置"按钮来添加额外的API端点。
+    - 使用眼睛图标来切换API密钥的可见性以确保安全。
+    - 从预定义模型中选择或输入自定义模型名称。
+
+3.  **上传和处理**: 
+    - 点击上传区域选择一个PDF文件。
+    - 系统将使用所有配置的API自动处理PDF。
+    - 实时查看识别进度和结果。
+
+4.  **查看结果**: 
+    - 比较不同API配置的结果。
+    - 为每一页选择最佳结果。
+    - 将选定的结果合并为最终文档。
+
+5.  **导出**: 在结果区域，你可以查看、复制或下载Markdown格式的识别内容。
 
 ## 🤝 贡献
 

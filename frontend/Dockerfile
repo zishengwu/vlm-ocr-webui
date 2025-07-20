@@ -1,41 +1,41 @@
 FROM docker.1ms.run/node:18
 
-# 设置工作目录
+# Set working directory
 WORKDIR /app
 
-# 复制项目文件
+# Copy project files
 COPY . .
 
-# 设置构建时参数
-ARG NEXT_PUBLIC_API_URL
+# Set build-time arguments
+ARG NEXT_PUBLIC_BACKEND_URL
 ARG NEXT_PUBLIC_MODEL_OPTIONS
 ARG NEXT_PUBLIC_API_ENDPOINT
 ARG NEXT_PUBLIC_API_KEY
 ARG NEXT_PUBLIC_API_NAME
 ARG NEXT_PUBLIC_DEFAULT_MODEL
 
-# 设置环境变量
+# Set environment variables
 ENV NODE_ENV production
 ENV NEXT_TELEMETRY_DISABLED 1
 ENV PORT 3000
 ENV HOSTNAME "0.0.0.0"
 
-# 设置构建时的环境变量
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+# Set build-time environment variables
+ENV NEXT_PUBLIC_BACKEND_URL=$NEXT_PUBLIC_BACKEND_URL
 ENV NEXT_PUBLIC_MODEL_OPTIONS=$NEXT_PUBLIC_MODEL_OPTIONS
 ENV NEXT_PUBLIC_API_ENDPOINT=$NEXT_PUBLIC_API_ENDPOINT
 ENV NEXT_PUBLIC_API_KEY=$NEXT_PUBLIC_API_KEY
 ENV NEXT_PUBLIC_API_NAME=$NEXT_PUBLIC_API_NAME
 ENV NEXT_PUBLIC_DEFAULT_MODEL=$NEXT_PUBLIC_DEFAULT_MODEL
 
-# 安装依赖并构建
+# Install dependencies and build
 RUN npm config set registry https://registry.npmmirror.com
 RUN npm install
 RUN npm run build
 RUN npm prune --production
 
-# 暴露端口
+# Expose port
 EXPOSE 3000
 
-# 启动应用
+# Start the application
 CMD ["npm", "start"]
