@@ -7,6 +7,7 @@ VLM-OCR is a powerful document processing tool that utilizes advanced Vision Lan
 - **High-Precision Recognition**: Employs parallel processing with multiple models to ensure high-precision recognition of diverse document content, including complex layouts.
 - **Multi-Format Support**: Not only extracts standard text but also accurately recognizes and converts **tables** and **mathematical formulas** into LaTeX format.
 - **Structured Output**: Automatically organizes the extracted document content into clear, readable Markdown format, preserving the original layout and semantic structure.
+- **Real-time Streaming Processing**: Features advanced concurrent processing where multiple APIs work in parallel, while each API processes pages sequentially. Results are displayed immediately after each page is processed, eliminating the need to wait for the entire PDF to complete.
 - **Web Interface**: Provides an intuitive and user-friendly web interface for users to easily upload PDF files and view recognition progress and results in real-time.
 - **One-Click Deployment with Docker**: Allows for one-click startup of the entire application using Docker Compose, greatly simplifying deployment and maintenance.
 - **Flexible Configuration**: Supports environment variable configuration for API endpoints, keys, and model options with visual API key management.
@@ -141,13 +142,14 @@ If you prefer to run the application locally without Docker:
 
 3.  **Upload and Process**: 
     - Click the upload area to select a PDF file.
-    - The system will automatically process the PDF using all configured APIs.
-    - View the recognition progress and results in real-time.
+    - The system will automatically process the PDF using all configured APIs in parallel.
+    - Each API processes pages sequentially, displaying results immediately after each page is completed.
+    - Monitor real-time progress and view results as they become available, without waiting for the entire document to finish processing.
 
 4.  **Review Results**: 
-    - Compare results from different API configurations.
-    - Select the best result for each page.
-    - Combine selected results into a final document.
+    - Compare results from different API configurations as they stream in.
+    - Select the best result for each page from the available options.
+    - Combine selected results into a final document once all processing is complete.
 
 5.  **Export**: In the results area, you can view, copy, or download the recognized content in Markdown format.
 

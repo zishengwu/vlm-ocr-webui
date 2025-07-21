@@ -29,8 +29,7 @@ const getModelOptions = () => {
   }
   return [
     'gpt-4o',
-    'Pro/Qwen/Qwen2.5-VL-7B-Instruct',
-    'Qwen/Qwen2.5-VL-32B-Instruct'
+    'gpt-4.1'
   ];
 };
 
@@ -59,6 +58,13 @@ export default function Home() {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [isAddApiDialogOpen, setIsAddApiDialogOpen] = useState(false);
+  
+  // Stream processing states
+  const [streamResults, setStreamResults] = useState<{[key: string]: string}>({});
+  const [processingStatus, setProcessingStatus] = useState<{[key: string]: 'pending' | 'processing' | 'completed' | 'error'}>({});
+  const [totalImages, setTotalImages] = useState(0);
+  const [totalApis, setTotalApis] = useState(0);
+  const [allProcessingCompleted, setAllProcessingCompleted] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -97,7 +103,7 @@ export default function Home() {
       
       if (endpoint) {
         const defaultConfig: ApiConfig = {
-          id: 'api-default',
+          id: 'api-1',
           name: process.env.NEXT_PUBLIC_API_NAME || 'Default API',
           endpoint,
           apiKey,
@@ -202,7 +208,7 @@ export default function Home() {
     }
   };
 
-  // Process the PDF with all configured APIs
+  // Process the PDF with streaming
   const processPdf = async () => {
     if (!selectedFile || apiConfigs.length === 0) {
       setToastMessage(t('upload.noFileOrApi'));
@@ -212,19 +218,20 @@ export default function Home() {
     
     setIsProcessing(true);
     setResults([]);
+    setStreamResults({});
+    setProcessingStatus({});
+    setAllProcessingCompleted(false);
     
     try {
-      // Use actual backend API call to replace mock data
       const formData = new FormData();
       formData.append('file', selectedFile);
       formData.append('api_configs', JSON.stringify(apiConfigs));
       
-      // Use the first API configuration endpoint as the base URL, or use the local backend address
       const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
       console.log('Using API address:', baseUrl);
       console.log('Sending API configuration:', JSON.stringify(apiConfigs));
       
-      const response = await fetch(`${baseUrl}/api/ocr`, {
+      const response = await fetch(`${baseUrl}/api/ocr/stream`, {
         method: 'POST',
         body: formData,
       });
@@ -233,67 +240,92 @@ export default function Home() {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      const data = await response.json();
-      console.log('Received API response:', data);
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
       
-      // Convert backend results to the format needed by the frontend
-      const apiResults: OcrResult[] = [];
-      if (data.results && Array.isArray(data.results)) {
-        // Process results for each page
-        data.results.forEach((markdown: string, index: number) => {
-          // Check if it contains API result markers
-          // Match both English "Results" (from backend) and Chinese "结果" (for backward compatibility)
-          if (markdown.includes('## ') && (markdown.includes(' Results') || markdown.includes(' 结果'))) {
-            // Split different API results
-            const sections = markdown.split('---').filter(section => section.trim());
-            
-            for (const section of sections) {
-              // Extract API name - match both English and Chinese result markers
-              const nameMatch = section.match(/## ([^\n]+) (Results|结果)/);
-              if (nameMatch) {
-                const apiName = nameMatch[1];
-                // Find corresponding API configuration
-                const apiConfig = apiConfigs.find(config => config.name === apiName);
-                if (apiConfig) {
-                  // Remove title, keep only content - handle both English and Chinese markers
-                  const content = section.replace(/## [^\n]+ (Results|结果)\n\n/, '');
-                  apiResults.push({
-                    pageNumber: index,
-                    markdown: content.trim(),
-                    apiId: apiConfig.id
-                  });
-                } else {
-                  // If matching API configuration not found, use the first API configuration
-                  if (apiConfigs.length > 0) {
-                    console.warn(`API named "${apiName}" not found, using first API configuration`);
-                    apiResults.push({
-                      pageNumber: index,
-                      markdown: section.replace(/## [^\n]+ (Results|结果)\n\n/, '').trim(),
-                      apiId: apiConfigs[0].id
-                    });
-                  }
-                }
-              }
-            }
-          } else {
-            // If no API result markers, use the first API configuration
-            if (apiConfigs.length > 0) {
-              apiResults.push({
-                pageNumber: index,
-                markdown: markdown,
-                apiId: apiConfigs[0].id
-              });
-            }
-          }
-        });
+      if (!reader) {
+        throw new Error('Failed to get response reader');
       }
       
-      // Sort results by page number
-      apiResults.sort((a, b) => a.pageNumber - b.pageNumber);
-      setResults(apiResults);
-      
-      setToastMessage(t('upload.processComplete'));
-      setShowToast(true);
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              
+              if (data.type === 'info') {
+                setTotalImages(data.total_pages);
+                setTotalApis(data.total_apis);
+                
+                // Initialize processing status
+                const initialStatus: {[key: string]: 'pending' | 'processing' | 'completed' | 'error'} = {};
+                for (let i = 0; i < data.total_pages; i++) {
+                  for (let j = 0; j < data.total_apis; j++) {
+                    const key = `${i}-${j}`;
+                    initialStatus[key] = 'pending';
+                  }
+                }
+                setProcessingStatus(initialStatus);
+              } else if (data.type === 'result') {
+                const result = data.result;
+                const key = `${result.page - 1}-${data.api_index}`; // Convert to 0-based indexing
+                
+                setStreamResults(prev => ({
+                  ...prev,
+                  [key]: result.content
+                }));
+                // Status update is now handled above with completion check
+                
+                // Also add to results for compatibility
+                const newResult: OcrResult = {
+                  pageNumber: result.page - 1, // Convert to 0-based indexing
+                  markdown: result.content,
+                  apiId: `api-${data.api_index + 1}` // Generate API ID based on index
+                };
+                setResults(prev => [...prev, newResult]);
+                
+                // Check if all processing is completed
+                setProcessingStatus(currentStatus => {
+                  const updatedStatus: {[key: string]: 'pending' | 'processing' | 'completed' | 'error'} = {
+                    ...currentStatus,
+                    [key]: result.success ? 'completed' : 'error'
+                  };
+                  
+                  // Check if all tasks are completed or errored
+                  const allCompleted = Object.values(updatedStatus).every(status => 
+                    status === 'completed' || status === 'error'
+                  );
+                  
+                  if (allCompleted && Object.keys(updatedStatus).length === totalImages * totalApis) {
+                    setAllProcessingCompleted(true);
+                  }
+                  
+                  return updatedStatus;
+                });
+              } else if (data.type === 'error') {
+                console.error('Stream error:', data.error);
+                setToastMessage(t('upload.processError', { error: data.error }));
+                setShowToast(true);
+              } else if (data.type === 'complete') {
+                setAllProcessingCompleted(true);
+                setToastMessage(t('upload.processComplete'));
+                setShowToast(true);
+              } else if (data.type === 'heartbeat') {
+                // Heartbeat to keep connection alive, no action needed
+                console.log('Received heartbeat');
+              }
+            } catch (e) {
+              console.error('Error parsing SSE data:', e);
+            }
+          }
+        }
+      }
     } catch (error) {
       console.error('Error processing PDF:', error);
       setToastMessage(t('upload.processError', { error: error instanceof Error ? error.message : String(error) }));
@@ -616,7 +648,90 @@ export default function Home() {
 
           {/* Results Tab */}
           <Tabs.Content value="results" className="space-y-8">
-            {results.length > 0 ? (
+            {/* Show processing status only when processing and not all completed */}
+            {(isProcessing || totalImages > 0) && !allProcessingCompleted && (
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                <h2 className="text-xl font-semibold mb-4">{t('message.processingStatus')}</h2>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                  <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{totalApis}</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">{t('message.apiCount')}</div>
+                  </div>
+                  <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">{totalImages}</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">{t('message.imageCount')}</div>
+                  </div>
+                  <div className="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                    <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                      {Object.values(processingStatus).filter(status => status === 'completed').length}
+                    </div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">{t('message.completed')}</div>
+                  </div>
+                </div>
+                
+                {/* Processing Grid */}
+                {totalImages > 0 && (
+                  <div className="space-y-6">
+                    {Array.from({length: totalImages}, (_, imageIndex) => (
+                      <div key={imageIndex} className="border rounded-lg overflow-hidden">
+                        <div className="bg-gray-100 dark:bg-gray-700 p-4 font-medium flex items-center">
+                          <span className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 mr-3">
+                            {imageIndex + 1}
+                          </span>
+                          {t('message.currentPage')} {imageIndex + 1}
+                        </div>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-4">
+                          {apiConfigs.map((api, apiIndex) => {
+                            const key = `${imageIndex}-${apiIndex}`;
+                            const status = processingStatus[key] || 'pending';
+                            const result = streamResults[key];
+                            
+                            return (
+                              <div key={api.id} className="border rounded-lg overflow-hidden">
+                                <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-750 border-b">
+                                  <h4 className="font-medium">{api.name}</h4>
+                                  <div className={clsx(
+                                    "px-2 py-1 rounded-full text-xs font-medium",
+                                    status === 'pending' && "bg-gray-100 text-gray-600 dark:bg-gray-600 dark:text-gray-300",
+                                    status === 'processing' && "bg-orange-100 text-orange-600 dark:bg-orange-900/50 dark:text-orange-300",
+                                    status === 'completed' && "bg-green-100 text-green-600 dark:bg-green-900/50 dark:text-green-300",
+                                    status === 'error' && "bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-300"
+                                  )}>
+                                    {status === 'pending' && t('message.pending')}
+                                    {status === 'processing' && (
+                                      <div className="flex items-center gap-1">
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                        {t('message.processing')}
+                                      </div>
+                                    )}
+                                    {status === 'completed' && t('message.completed')}
+                                    {status === 'error' && t('message.error')}
+                                  </div>
+                                </div>
+                                <div className="bg-white dark:bg-gray-800 p-3 min-h-[100px]">
+                                  {result ? (
+                                    <pre className="text-sm whitespace-pre-wrap font-mono overflow-auto max-h-60">{result}</pre>
+                                  ) : (
+                                    <div className="flex items-center justify-center h-20 text-gray-400 dark:text-gray-500">
+                                      {status === 'pending' && t('message.pending')}
+                                      {status === 'processing' && t('message.processing')}
+                                      {status === 'error' && t('message.error')}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* Show results selection only when all processing is completed */}
+            {allProcessingCompleted && results.length > 0 && (
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-xl font-semibold">{t('tabs.results')}</h2>
@@ -675,11 +790,6 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
-              </div>
-            ) : (
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center">
-                <p className="text-gray-500 dark:text-gray-400">{t('results.noResults')}</p>
-                <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">{t('results.processPdfPrompt')}</p>
               </div>
             )}
           </Tabs.Content>

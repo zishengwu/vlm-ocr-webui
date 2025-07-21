@@ -1,6 +1,5 @@
 from openai import AsyncOpenAI
-import asyncio
-from typing import List, Dict, Any
+from typing import List
 
 PROMPT = """
 Extract all meaningful content from the image and format it strictly as Markdown, following these rules:
@@ -18,70 +17,73 @@ Extract all meaningful content from the image and format it strictly as Markdown
 - If the image contains multiple sections, ensure each section is clearly separated in the Markdown output.
 """
 
-async def process_single_api(img: str, api_config: dict) -> Dict[str, Any]:
-    """Processes a single API request."""
+async def process_single_api_stream(images: List[str], api_config: dict):
+    """
+    Processes multiple images sequentially for a single API.
+    Yields results as they are processed.
+    """
+    import logging
+    logger = logging.getLogger("vlm_ocr")
+    
+    api_name = api_config.get("name", "Unnamed API")
+    
     try:
         api_key = api_config.get("apiKey")
         url = api_config.get("endpoint")
-        name = api_config.get("name", "")
-
+        model = api_config.get("model")
+        
+        if not api_key:
+            logger.error(f"API key not provided for {api_name}")
+            yield {"name": api_name, "page": 0, "content": "API initialization failed: API key not provided", "success": False}
+            return
+        
         client = AsyncOpenAI(
             api_key=api_key,
             base_url=url
         )
-        model = api_config.get("model")
-
-        response = await client.chat.completions.create(
-            model=model,
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
+        
+        for i, img in enumerate(images):
+            try:
+                logger.info(f"Processing page {i+1} with API {api_name}")
+                
+                response = await client.chat.completions.create(
+                    model=model,
+                    messages=[
                         {
-                            "type": "image_url",
-                            "image_url": {"url": f"data:image/jpeg;base64,{img}"}
-                        },
-                        {
-                            "type": "text", 
-                            "text": PROMPT
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "image_url",
+                                    "image_url": {"url": f"data:image/jpeg;base64,{img}"}
+                                },
+                                {
+                                    "type": "text", 
+                                    "text": PROMPT
+                                }
+                            ],
                         }
                     ],
+                )
+                
+                result = {
+                    "name": api_name,
+                    "page": i + 1,
+                    "content": response.choices[0].message.content,
+                    "success": True
                 }
-            ],
-        )
-        return {
-            "name": name,
-            "content": response.choices[0].message.content,
-            "success": True
-        }
+                yield result
+                logger.info(f"Successfully processed page {i+1} with API {api_name}")
+                
+            except Exception as e:
+                logger.error(f"Error processing page {i+1} with API {api_name}: {str(e)}")
+                result = {
+                    "name": api_name,
+                    "page": i + 1,
+                    "content": f"Processing failed: {str(e)}",
+                    "success": False
+                }
+                yield result
+                
     except Exception as e:
-        return {
-            "name": api_config.get("name", "Unnamed API"),
-            "content": f"Processing failed: {str(e)}",
-            "success": False
-        }
-
-async def Vlm_client(img: str, api_configs: List[dict]) -> str:
-    """Processes multiple API requests and returns the results."""
-    import logging
-    logger = logging.getLogger("vlm_ocr")
-    
-    if not api_configs or len(api_configs) == 0:
-        logger.error("Error: No API configuration provided")
-        return "Error: No API configuration provided"
-    
-    start_time = asyncio.get_event_loop().time()
-    tasks = [process_single_api(img, config) for config in api_configs]
-    results = await asyncio.gather(*tasks)
-    end_time = asyncio.get_event_loop().time()
-    
-    logger.info(f"All API requests processed, time taken: {end_time - start_time:.2f} seconds")
-
-    formatted_results = ""
-    for result in results:
-        logger.info(f"API '{result['name']}' processed {'successfully' if result['success'] else 'failed'}")
-        formatted_results += f"## {result['name']} Results\n\n"
-        formatted_results += result["content"]
-        formatted_results += "\n\n---\n\n"
-    
-    return formatted_results
+        logger.error(f"Error initializing API {api_name}: {str(e)}")
+        yield {"name": api_name, "page": 0, "content": f"API initialization failed: {str(e)}", "success": False}

@@ -70,6 +70,16 @@ const resources = {
       common: {
         cancel: 'Cancel',
         add: 'Add'
+      },
+      message: {
+        pending: 'Pending',
+        processing: 'Processing',
+        completed: 'Completed',
+        error: 'Error',
+        imageCount: 'Image Number',
+        apiCount: 'API Number',
+        processingStatus: 'Processing Status',
+        currentPage: 'Current Page'
       }
     }
   },
@@ -141,6 +151,16 @@ const resources = {
       common: {
         cancel: '取消',
         add: '添加'
+      },
+      message: {
+        pending: '待处理',
+        processing: '处理中',
+        completed: '处理完成',
+        error: '处理出错',
+        imageCount: '图片数量',
+        apiCount: 'API数量',
+        processingStatus: '处理状态',
+        currentPage: '当前页数'
       }
     }
   }
