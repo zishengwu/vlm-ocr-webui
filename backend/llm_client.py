@@ -17,6 +17,62 @@ Extract all meaningful content from the image and format it strictly as Markdown
 - If the image contains multiple sections, ensure each section is clearly separated in the Markdown output.
 """
 
+def get_provider_config(provider_name: str, img: str, prompt: str) -> dict:
+    """
+    Get the provider configuration for a given provider name.
+    """
+    
+    provider_configs = {
+        "OpenAI": {
+            "message_format": {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_image",
+                        "image_url": {"url": f"data:image/jpeg;base64,{img}"}
+                    },
+                    {
+                        "type": "input_text", 
+                        "text": prompt
+                    }
+                ]
+            }
+        },
+        
+        "siliconflow": {
+            "message_format": {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{img}"}
+                    },
+                    {
+                        "type": "text", 
+                        "text": prompt
+                    }
+                ]
+            }
+        },
+        
+        "Ollama": {
+            "message_format": {
+                "role": "user",
+                "content": prompt,
+                "images": [img]
+            }
+        },
+        
+        "anthropic": {
+            "message_format": {
+                "role": "user",
+                "content": prompt,
+                "images":[img]
+            }
+        }
+    }
+    return provider_configs.get(provider_name)
+
 async def process_single_api_stream(images: List[str], api_config: dict):
     """
     Processes multiple images sequentially for a single API.
@@ -32,6 +88,7 @@ async def process_single_api_stream(images: List[str], api_config: dict):
         url = api_config.get("endpoint")
         model = api_config.get("model")
         
+        provider = api_config.get("provider", "OpenAI")
         if not api_key:
             logger.error(f"API key not provided for {api_name}")
             yield {"name": api_name, "page": 0, "content": "API initialization failed: API key not provided", "success": False}
@@ -44,25 +101,12 @@ async def process_single_api_stream(images: List[str], api_config: dict):
         
         for i, img in enumerate(images):
             try:
-                logger.info(f"Processing page {i+1} with API {api_name}")
-                
+                provider_config = get_provider_config(provider, img, PROMPT)
+                message_format = provider_config["message_format"]
+
                 response = await client.chat.completions.create(
                     model=model,
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "image_url",
-                                    "image_url": {"url": f"data:image/jpeg;base64,{img}"}
-                                },
-                                {
-                                    "type": "text", 
-                                    "text": PROMPT
-                                }
-                            ],
-                        }
-                    ],
+                    messages=[message_format]
                 )
                 
                 result = {

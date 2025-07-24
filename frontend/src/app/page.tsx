@@ -15,6 +15,7 @@ interface ApiConfig {
   endpoint: string;
   apiKey: string;
   model: string;
+  provider: string;
 }
 
 // Get model options from environment variables or use defaults
@@ -35,6 +36,14 @@ const getModelOptions = () => {
 
 const MODEL_OPTIONS = getModelOptions();
 
+// Provider options
+const PROVIDER_OPTIONS = [
+  { value: 'OpenAI', label: 'OpenAI' },
+  { value: 'Ollama', label: 'Ollama' },
+  { value: 'siliconflow', label: 'SiliconFlow' },
+  { value: 'anthropic', label: 'Anthropic' },
+];
+
 interface OcrResult {
   pageNumber: number;
   markdown: string;
@@ -50,6 +59,7 @@ export default function Home() {
   const [showApiKey, setShowApiKey] = useState(false);
   const [newApiModel, setNewApiModel] = useState('');
   const [customModel, setCustomModel] = useState('');
+  const [newApiProvider, setNewApiProvider] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [results, setResults] = useState<OcrResult[]>([]);
@@ -107,7 +117,8 @@ export default function Home() {
           name: process.env.NEXT_PUBLIC_API_NAME || 'Default API',
           endpoint,
           apiKey,
-          model: process.env.NEXT_PUBLIC_DEFAULT_MODEL || 'gpt-4o'
+          model: process.env.NEXT_PUBLIC_DEFAULT_MODEL || 'gpt-4o',
+          provider: process.env.NEXT_PUBLIC_DEFAULT_PROVIDER || 'OpenAI'
         };
         
         setApiConfigs([defaultConfig]);
@@ -149,7 +160,8 @@ export default function Home() {
       name: newApiName || `API ${apiConfigs.length + 1}`,
       endpoint: newApiEndpoint,
       apiKey: newApiKey,
-      model: modelToUse
+      model: modelToUse,
+      provider: newApiProvider || 'OpenAI'
     };
     
     setApiConfigs([...apiConfigs, newConfig]);
@@ -158,6 +170,7 @@ export default function Home() {
     setNewApiKey('');
     setNewApiModel('');
     setCustomModel('');
+    setNewApiProvider('');
     setIsAddApiDialogOpen(false);
     
     setToastMessage(t('apiConfig.added'));
@@ -173,6 +186,7 @@ export default function Home() {
       setNewApiName(process.env.NEXT_PUBLIC_API_NAME || '');
       setNewApiEndpoint(process.env.NEXT_PUBLIC_API_ENDPOINT || '');
       setNewApiKey(process.env.NEXT_PUBLIC_API_KEY || '');
+      setNewApiProvider(process.env.NEXT_PUBLIC_DEFAULT_PROVIDER || 'OpenAI');
       
       const defaultModel = process.env.NEXT_PUBLIC_DEFAULT_MODEL || '';
       if (defaultModel) {
@@ -482,6 +496,18 @@ export default function Home() {
                           />
                         </div>
                         <div>
+                          <label className="block text-sm font-medium mb-1">{t('apiConfig.providerLabel')}</label>
+                          <select
+                            value={newApiProvider}
+                            onChange={(e) => setNewApiProvider(e.target.value)}
+                            className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600"
+                          >
+                            {PROVIDER_OPTIONS.map((provider) => (
+                              <option key={provider.value} value={provider.value}>{provider.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
                           <label className="block text-sm font-medium mb-1">{t('apiConfig.apiKeyLabel')}</label>
                           <div className="relative">
                             <input
@@ -573,6 +599,9 @@ export default function Home() {
                           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{config.endpoint}</p>
                           {config.model && (
                             <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{t('apiConfig.modelPrefix')}{config.model}</p>
+                          )}
+                          {config.provider && (
+                            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{t('apiConfig.providerPrefix')}{config.provider}</p>
                           )}
                         </div>
                         <button

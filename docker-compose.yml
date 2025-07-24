@@ -29,6 +29,7 @@ services:
         - NEXT_PUBLIC_DEFAULT_MODEL=gpt-4o
         - NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
         - NEXT_PUBLIC_MODEL_OPTIONS=["gpt-4o","gpt-4.1"]
+        - NEXT_PUBLIC_DEFAULT_PROVIDER=OpenAI
     container_name: vlm-ocr-frontend
     ports:
       - "3000:3000"
