@@ -13,6 +13,7 @@ const resources = {
       },
       upload: {
         title: 'Upload PDF',
+        description: 'Upload PDF documents to start OCR processing',
         dragDrop: 'Drag & drop PDF file or click to upload',
         supportedFormat: 'Supports PDF format',
         processButton: 'Process PDF',
@@ -38,13 +39,18 @@ const resources = {
       },
       finalResult: {
         title: 'Final Combined Result',
+        description: 'Edit and download your final Markdown result',
         copyToClipboard: 'Copy to Clipboard',
         downloadMarkdown: 'Download Markdown',
         noFinalResult: 'No final result yet.',
-        selectAndCombinePrompt: 'Please select and combine OCR results first.'
+        selectAndCombinePrompt: 'Please select and combine OCR results first.',
+        editLabel: 'Edit Markdown Content',
+        previewLabel: 'Preview',
+        placeholder: 'Your Markdown content will be displayed here...'
       },
       apiConfig: {
         title: 'API Configuration',
+        description: 'Configure your API endpoints to start processing PDF documents',
         addButton: 'Add API',
         emptyState: 'No API configured',
         emptyHint: 'Click "Add API" to start configuration',
@@ -81,7 +87,9 @@ const resources = {
         imageCount: 'Image Number',
         apiCount: 'API Number',
         processingStatus: 'Processing Status',
-        currentPage: 'Current Page'
+        currentPage: 'Current Page',
+        processingDescription: 'Processing your PDF document, please wait...',
+        progressLabel: 'Processing Progress'
       }
     }
   },
@@ -96,6 +104,7 @@ const resources = {
       },
       upload: {
         title: '上传PDF',
+        description: '上传PDF文档开始OCR处理',
         dragDrop: '拖放PDF文件或点击上传',
         supportedFormat: '支持PDF格式',
         processButton: '处理PDF',
@@ -121,13 +130,18 @@ const resources = {
       },
       finalResult: {
         title: '最终合并结果',
+        description: '编辑和下载您的最终Markdown结果',
         copyToClipboard: '复制到剪贴板',
         downloadMarkdown: '下载Markdown',
         noFinalResult: '尚无最终结果',
-        selectAndCombinePrompt: '请先选择并合并OCR结果'
+        selectAndCombinePrompt: '请先选择并合并OCR结果',
+        editLabel: '编辑Markdown内容',
+        previewLabel: '预览效果',
+        placeholder: '您的Markdown内容将显示在这里...'
       },
       apiConfig: {
         title: 'API配置',
+        description: '配置您的API端点以开始处理PDF文档',
         addButton: '添加API',
         emptyState: '尚未配置API',
         emptyHint: '点击「添加API」按钮开始配置',
@@ -164,7 +178,9 @@ const resources = {
         imageCount: '图片数量',
         apiCount: 'API数量',
         processingStatus: '处理状态',
-        currentPage: '当前页数'
+        currentPage: '当前页数',
+        processingDescription: '正在处理您的PDF文档，请稍候...',
+        progressLabel: '处理进度'
       }
     }
   }

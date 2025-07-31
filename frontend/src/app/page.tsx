@@ -5,9 +5,16 @@ import { useTranslation } from 'react-i18next';
 import * as Tabs from '@radix-ui/react-tabs';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Toast from '@radix-ui/react-toast';
-import { clsx } from 'clsx';
-import { Upload, FileText, Check, X, Copy, Loader2, Plus, Trash2, Download, Eye, EyeOff } from 'lucide-react';
+
+import { Upload, FileText, Check, X, Copy, Loader2, Plus, Trash2, Download, Eye, EyeOff, Settings, Zap, Clock, CheckCircle } from 'lucide-react';
 import MarkdownViewer from '@/components/MarkdownViewer';
+import { Header } from '@/components/Header';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { cn } from '@/lib/utils';
 
 interface ApiConfig {
   id: string;
@@ -25,7 +32,7 @@ const getModelOptions = () => {
     try {
       return JSON.parse(envModels);
     } catch (e) {
-      console.warn('Failed to parse NEXT_PUBLIC_MODEL_OPTIONS, using defaults：', e);
+      console.warn('Failed to parse NEXT_PUBLIC_MODEL_OPTIONS, using defaults:', e);
     }
   }
   return [
@@ -125,7 +132,7 @@ export default function Home() {
         console.log('Loaded default configuration from environment variables:', defaultConfig);
       }
     }
-  }, []);
+  }, [apiConfigs.length]);
 
   // Add a new API configuration
   const addApiConfig = () => {
@@ -409,50 +416,54 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+    <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-800 shadow-sm py-6">
-        <div className="container mx-auto px-4">
-          
-          <h1 className="text-3xl font-bold text-center">{t('title')}</h1>
-          <p className="text-gray-600 dark:text-gray-400 text-center mt-2">{t('subtitle')}</p>
-        </div>
-      </header>
+      <Header />
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-8 space-y-8">
         <Tabs.Root defaultValue="upload" className="flex flex-col">
-          <Tabs.List className="flex border-b border-gray-200 dark:border-gray-700 mb-8">
+          <Tabs.List className="flex border-b border-border mb-8 bg-muted/30 rounded-lg p-1 w-fit">
             <Tabs.Trigger 
               value="upload" 
-              className={clsx(
-                "px-4 py-2 -mb-px font-medium text-sm",
-                "data-[state=active]:border-b-2 data-[state=active]:border-blue-500 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400",
-                "data-[state=inactive]:text-gray-500 data-[state=inactive]:hover:text-gray-700 dark:data-[state=inactive]:text-gray-400 dark:data-[state=inactive]:hover:text-gray-300"
+              className={cn(
+                "px-6 py-3 font-medium text-sm rounded-md transition-all duration-200",
+                "data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm",
+                "data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-muted/50"
               )}
             >
+              <Upload className="w-4 h-4 mr-2" />
               {t('tabs.upload')}
             </Tabs.Trigger>
             <Tabs.Trigger 
               value="results" 
-              className={clsx(
-                "px-4 py-2 -mb-px font-medium text-sm",
-                "data-[state=active]:border-b-2 data-[state=active]:border-blue-500 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400",
-                "data-[state=inactive]:text-gray-500 data-[state=inactive]:hover:text-gray-700 dark:data-[state=inactive]:text-gray-400 dark:data-[state=inactive]:hover:text-gray-300"
+              className={cn(
+                "px-6 py-3 font-medium text-sm rounded-md transition-all duration-200",
+                "data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm",
+                "data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-muted/50",
+                "disabled:opacity-50 disabled:cursor-not-allowed"
               )}
               disabled={results.length === 0}
             >
+              <Zap className="w-4 h-4 mr-2" />
               {t('tabs.results')}
+              {results.length > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  {results.length}
+                </Badge>
+              )}
             </Tabs.Trigger>
             <Tabs.Trigger 
               value="final" 
-              className={clsx(
-                "px-4 py-2 -mb-px font-medium text-sm",
-                "data-[state=active]:border-b-2 data-[state=active]:border-blue-500 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400",
-                "data-[state=inactive]:text-gray-500 data-[state=inactive]:hover:text-gray-700 dark:data-[state=inactive]:text-gray-400 dark:data-[state=inactive]:hover:text-gray-300"
+              className={cn(
+                "px-6 py-3 font-medium text-sm rounded-md transition-all duration-200",
+                "data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm",
+                "data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-muted/50",
+                "disabled:opacity-50 disabled:cursor-not-allowed"
               )}
               disabled={!finalMarkdown}
             >
+              <CheckCircle className="w-4 h-4 mr-2" />
               {t('tabs.final')}
             </Tabs.Trigger>
           </Tabs.List>
@@ -460,16 +471,25 @@ export default function Home() {
           {/* Upload & Process Tab */}
           <Tabs.Content value="upload" className="space-y-8">
             {/* API Configuration Section */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold">{t('apiConfig.title')}</h2>
-                <Dialog.Root open={isAddApiDialogOpen} onOpenChange={handleDialogOpenChange}>
-                  <Dialog.Trigger asChild>
-                    <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
-                      <Plus size={16} />
-                      {t('apiConfig.addButton')}
-                    </button>
-                  </Dialog.Trigger>
+            <Card className="shadow-medium hover:shadow-hard transition-shadow duration-300">
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Settings className="w-5 h-5" />
+                      {t('apiConfig.title')}
+                    </CardTitle>
+                    <CardDescription className="mt-2">
+                      {t('apiConfig.description')}
+                    </CardDescription>
+                  </div>
+                  <Dialog.Root open={isAddApiDialogOpen} onOpenChange={handleDialogOpenChange}>
+                    <Dialog.Trigger asChild>
+                      <Button className="shadow-sm hover:shadow-md transition-shadow">
+                        <Plus className="w-4 h-4 mr-2" />
+                        {t('apiConfig.addButton')}
+                      </Button>
+                    </Dialog.Trigger>
                   <Dialog.Portal>
                     <Dialog.Overlay className="fixed inset-0 bg-black/50" />
                     <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 w-full max-w-md">
@@ -582,121 +602,161 @@ export default function Home() {
                   </Dialog.Portal>
                 </Dialog.Root>
               </div>
-
-              {/* List of configured APIs */}
-              {apiConfigs.length === 0 ? (
-                <div className="text-center py-8 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
-                  <p className="text-gray-500 dark:text-gray-400">{t('apiConfig.emptyState')}</p>
-                  <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">{t('apiConfig.emptyHint')}</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {apiConfigs.map((config) => (
-                    <div key={config.id} className="border rounded-lg p-4 bg-gray-50 dark:bg-gray-700">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="font-medium">{config.name}</h3>
-                          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{config.endpoint}</p>
-                          {config.model && (
-                            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{t('apiConfig.modelPrefix')}{config.model}</p>
-                          )}
-                          {config.provider && (
-                            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{t('apiConfig.providerPrefix')}{config.provider}</p>
-                          )}
-                        </div>
-                        <button
-                          onClick={() => removeApiConfig(config.id)}
-                          className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-                          aria-label={t('apiConfig.deleteApiConfig')}
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* File Upload Section */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-semibold mb-6">{t('upload.title')}</h2>
-              
-              <div 
-                className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                  accept=".pdf"
-                  className="hidden"
-                />
-                <div className="w-16 h-16 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center mb-4">
-                  <Upload className="w-8 h-8 text-blue-500 dark:text-blue-400" />
-                </div>
-                {selectedFile ? (
-                  <div className="text-center">
-                    <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-medium">
-                      <FileText size={18} />
-                      {selectedFile.name}
-                    </div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                      {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                    </p>
+              </CardHeader>
+              <CardContent>
+                {/* List of configured APIs */}
+                {apiConfigs.length === 0 ? (
+                  <div className="text-center py-8 border-2 border-dashed border-border rounded-lg">
+                    <Settings className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p className="text-muted-foreground">{t('apiConfig.emptyState')}</p>
+                    <p className="text-sm text-muted-foreground/70 mt-2">{t('apiConfig.emptyHint')}</p>
                   </div>
                 ) : (
-                  <div className="text-center">
-                    <p className="text-gray-700 dark:text-gray-300 font-medium">{t('upload.dragDrop')}</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{t('upload.supportedFormat')}</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {apiConfigs.map((config) => (
+                      <Card key={config.id} className="border-border/50 hover:border-border transition-colors">
+                        <CardContent className="p-4">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <h3 className="font-medium">{config.name}</h3>
+                                <Badge variant="outline">{config.provider}</Badge>
+                              </div>
+                              <p className="text-sm text-muted-foreground">{config.endpoint}</p>
+                              {config.model && (
+                                <p className="text-xs text-muted-foreground/70 mt-1">{t('apiConfig.modelPrefix')}{config.model}</p>
+                              )}
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeApiConfig(config.id)}
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              aria-label={t('apiConfig.deleteApiConfig')}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
                   </div>
                 )}
-              </div>
+              </CardContent>
+            </Card>
 
-              <div className="mt-6 flex justify-center">
-                <button
-                  onClick={processPdf}
-                  disabled={!selectedFile || apiConfigs.length === 0 || isProcessing}
-                  className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            {/* File Upload Section */}
+            <Card className="shadow-medium hover:shadow-hard transition-shadow duration-300">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Upload className="w-5 h-5" />
+                  {t('upload.title')}
+                </CardTitle>
+                <CardDescription>
+                  {t('upload.description')}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div 
+                  className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-lg p-8 cursor-pointer hover:bg-muted/30 transition-colors"
+                  onClick={() => fileInputRef.current?.click()}
                 >
-                  {isProcessing ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      {t('upload.processing')}
-                    </>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    accept=".pdf"
+                    className="hidden"
+                  />
+                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                    <Upload className="w-8 h-8 text-primary" />
+                  </div>
+                  {selectedFile ? (
+                    <div className="text-center">
+                      <div className="flex items-center gap-2 text-primary font-medium">
+                        <FileText size={18} />
+                        {selectedFile.name}
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                    </div>
                   ) : (
-                    <>
-                    <>{t('upload.processButton')}</>
-                    </>
+                    <div className="text-center">
+                      <p className="font-medium">{t('upload.dragDrop')}</p>
+                      <p className="text-sm text-muted-foreground mt-2">{t('upload.supportedFormat')}</p>
+                    </div>
                   )}
-                </button>
-              </div>
-            </div>
+                </div>
+
+                <div className="mt-6">
+                  <Button
+                    onClick={processPdf}
+                    disabled={!selectedFile || apiConfigs.length === 0 || isProcessing}
+                    className="w-full shadow-sm hover:shadow-md transition-shadow"
+                    size="lg"
+                  >
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                        {t('upload.processing')}
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="w-4 h-4 mr-2" />
+                        {t('upload.processButton')}
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </Tabs.Content>
 
           {/* Results Tab */}
           <Tabs.Content value="results" className="space-y-8">
             {/* Show processing status only when processing and not all completed */}
             {(isProcessing || totalImages > 0) && !allProcessingCompleted && (
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                <h2 className="text-xl font-semibold mb-4">{t('message.processingStatus')}</h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-                  <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{totalApis}</div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">{t('message.apiCount')}</div>
-                  </div>
-                  <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">{totalImages}</div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">{t('message.imageCount')}</div>
-                  </div>
-                  <div className="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                    <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                      {Object.values(processingStatus).filter(status => status === 'completed').length}
+              <Card className="shadow-medium border-primary/20">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Clock className="w-5 h-5 animate-pulse" />
+                    {t('message.processingStatus')}
+                  </CardTitle>
+                  <CardDescription>
+                    {t('message.processingDescription')}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-primary">{totalApis}</div>
+                      <div className="text-sm text-muted-foreground">{t('message.apiCount')}</div>
                     </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">{t('message.completed')}</div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-primary">{totalImages}</div>
+                      <div className="text-sm text-muted-foreground">{t('message.imageCount')}</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-primary">
+                        {Object.values(processingStatus).filter(status => status === 'completed').length}
+                      </div>
+                      <div className="text-sm text-muted-foreground">{t('message.completed')}</div>
+                    </div>
                   </div>
-                </div>
+                  
+                  {/* Progress bar */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>{t('message.progressLabel')}</span>
+                      <span>{totalImages * totalApis > 0 ? Math.round((Object.values(processingStatus).filter(status => status === 'completed').length / (totalImages * totalApis)) * 100) : 0}%</span>
+                    </div>
+                    <Progress 
+                      value={Object.values(processingStatus).filter(status => status === 'completed').length} 
+                      max={totalImages * totalApis}
+                      className="h-3"
+                    />
+                  </div>
                 
                 {/* Processing Grid */}
                 {totalImages > 0 && (
@@ -719,13 +779,15 @@ export default function Home() {
                               <div key={api.id} className="border rounded-lg overflow-hidden">
                                 <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-750 border-b">
                                   <h4 className="font-medium">{api.name}</h4>
-                                  <div className={clsx(
-                                    "px-2 py-1 rounded-full text-xs font-medium",
-                                    status === 'pending' && "bg-gray-100 text-gray-600 dark:bg-gray-600 dark:text-gray-300",
-                                    status === 'processing' && "bg-orange-100 text-orange-600 dark:bg-orange-900/50 dark:text-orange-300",
-                                    status === 'completed' && "bg-green-100 text-green-600 dark:bg-green-900/50 dark:text-green-300",
-                                    status === 'error' && "bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-300"
-                                  )}>
+                                  <Badge 
+                                  variant={
+                                    status === 'pending' ? 'secondary' :
+                                    status === 'processing' ? 'default' :
+                                    status === 'completed' ? 'success' :
+                                    'destructive'
+                                  }
+                                  className="text-xs"
+                                >
                                     {status === 'pending' && t('message.pending')}
                                     {status === 'processing' && (
                                       <div className="flex items-center gap-1">
@@ -735,7 +797,7 @@ export default function Home() {
                                     )}
                                     {status === 'completed' && t('message.completed')}
                                     {status === 'error' && t('message.error')}
-                                  </div>
+                                  </Badge>
                                 </div>
                                 <div className="bg-white dark:bg-gray-800 p-3 min-h-[100px]">
                                   {result ? (
@@ -756,113 +818,153 @@ export default function Home() {
                     ))}
                   </div>
                 )}
-              </div>
-            )}
+              </CardContent>
+            </Card>
+          )}
             
-            {/* Show results selection only when all processing is completed */}
-            {allProcessingCompleted && results.length > 0 && (
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-semibold">{t('tabs.results')}</h2>
-                  <button
-                    onClick={combineResults}
-                    disabled={Object.keys(selectedResults).length === 0}
-                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Check size={16} />
-                    {t('results.combineSelected')}
-                  </button>
-                </div>
-                
-                <div className="space-y-8">
+          {/* Show results selection only when all processing is completed */}
+          {allProcessingCompleted && results.length > 0 && (
+            <Card className="shadow-medium">
+               <CardHeader>
+                 <div className="flex justify-between items-center">
+                   <CardTitle className="flex items-center gap-2">
+                     <Zap className="w-5 h-5" />
+                     {t('tabs.results')}
+                   </CardTitle>
+                   <Button
+                     onClick={combineResults}
+                     disabled={Object.keys(selectedResults).length === 0}
+                     className="shadow-sm hover:shadow-md transition-shadow"
+                   >
+                     <Check className="w-4 h-4 mr-2" />
+                     {t('results.combineSelected')}
+                   </Button>
+                 </div>
+               </CardHeader>
+               <CardContent className="space-y-8">
                   {/* Group results by page number */}
-                  {Array.from(new Set(results.map(r => r.pageNumber))).sort((a, b) => a - b).map(pageNumber => (
-                    <div key={pageNumber} className="border rounded-lg overflow-hidden">
-                      <div className="bg-gray-100 dark:bg-gray-700 p-4 font-medium flex items-center">
-                        <span className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 mr-3">
-                          {pageNumber + 1}
-                        </span>
-                        {t('results.page', { page: pageNumber + 1 })}
-                      </div>
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-6">
-                        {results.filter(r => r.pageNumber === pageNumber).map(result => (
-                          <div key={result.apiId} className="border rounded-lg overflow-hidden">
-                            <div className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-750 border-b">
-                              <h4 className="font-medium flex items-center">
-                                {apiConfigs.find(c => c.id === result.apiId)?.name || t('results.unknownApi')}
-                              </h4>
-                              <button
-                                onClick={() => selectResult(pageNumber, result.apiId)}
-                                className={clsx(
-                                  "flex items-center gap-1 px-3 py-1 rounded-md text-sm transition-colors",
-                                  selectedResults[pageNumber] === result.apiId
-                                    ? "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300"
-                                    : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500"
-                                )}
-                              >
-                                {selectedResults[pageNumber] === result.apiId ? (
-                                  <>
-                                    <Check size={14} />
-                                    {t('results.selectedButton')}
-                                  </>
-                                ) : (
-                                  t('results.selectButton')
-                                )}
-                              </button>
-                            </div>
-                            <div className="bg-white dark:bg-gray-800 p-4 overflow-auto max-h-80">
-                              <pre className="text-sm whitespace-pre-wrap font-mono">{result.markdown}</pre>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+                   {Array.from(new Set(results.map(r => r.pageNumber))).sort((a, b) => a - b).map(pageNumber => (
+                     <Card key={pageNumber} className="border-border/50">
+                       <CardHeader className="bg-muted/30">
+                         <CardTitle className="flex items-center gap-3">
+                           <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary">
+                             {pageNumber + 1}
+                           </div>
+                           {t('results.page', { page: pageNumber + 1 })}
+                         </CardTitle>
+                       </CardHeader>
+                       <CardContent className="p-6">
+                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                           {results.filter(r => r.pageNumber === pageNumber).map(result => (
+                             <Card key={result.apiId} className="border-border/50 hover:border-border transition-colors">
+                               <CardHeader className="pb-3">
+                                 <div className="flex justify-between items-center">
+                                   <CardTitle className="text-base">
+                                     {apiConfigs.find(c => c.id === result.apiId)?.name || t('results.unknownApi')}
+                                   </CardTitle>
+                                   <Button
+                                     onClick={() => selectResult(pageNumber, result.apiId)}
+                                     variant={selectedResults[pageNumber] === result.apiId ? "default" : "outline"}
+                                     size="sm"
+                                     className="shadow-sm hover:shadow-md transition-shadow"
+                                   >
+                                     {selectedResults[pageNumber] === result.apiId ? (
+                                       <>
+                                         <Check className="w-4 h-4 mr-1" />
+                                         {t('results.selectedButton')}
+                                       </>
+                                     ) : (
+                                       t('results.selectButton')
+                                     )}
+                                   </Button>
+                                 </div>
+                               </CardHeader>
+                               <CardContent className="pt-0">
+                                 <div className="bg-muted/30 p-4 rounded-md overflow-auto max-h-80">
+                                   <pre className="text-sm whitespace-pre-wrap font-mono">{result.markdown}</pre>
+                                 </div>
+                               </CardContent>
+                             </Card>
+                           ))}
+                         </div>
+                       </CardContent>
+                     </Card>
+                   ))}
+                </CardContent>
+              </Card>
             )}
           </Tabs.Content>
 
           {/* Final Result Tab */}
           <Tabs.Content value="final" className="space-y-8">
             {finalMarkdown ? (
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-semibold">{t('finalResult.title')}</h2>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={copyToClipboard}
-                      className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
-                    >
-                      <Copy size={16} />
-                      {t('finalResult.copyToClipboard')}
-                    </button>
-                    <button
-                      onClick={downloadMarkdown}
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                    >
-                      <Download size={16} />
-                      {t('finalResult.downloadMarkdown')}
-                    </button>
+              <Card className="shadow-medium hover:shadow-hard transition-shadow duration-300">
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <CheckCircle className="w-5 h-5" />
+                        {t('finalResult.title')}
+                      </CardTitle>
+                      <CardDescription className="mt-2">
+                        {t('finalResult.description')}
+                      </CardDescription>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={copyToClipboard}
+                        variant="outline"
+                        className="shadow-sm hover:shadow-md transition-shadow"
+                      >
+                        <Copy className="w-4 h-4 mr-2" />
+                        {t('finalResult.copyToClipboard')}
+                      </Button>
+                      <Button
+                        onClick={downloadMarkdown}
+                        className="shadow-sm hover:shadow-md transition-shadow"
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        {t('finalResult.downloadMarkdown')}
+                      </Button>
+                    </div>
                   </div>
-                </div>
-                <textarea
-                  className="w-full h-96 p-4 border rounded-md dark:bg-gray-700 dark:border-gray-600 font-mono text-sm"
-                  value={finalMarkdown}
-                  onChange={(e) => setFinalMarkdown(e.target.value)}
-                />
-                <div className="bg-gray-50 dark:bg-gray-900 p-6 rounded-lg border border-gray-200 dark:border-gray-700 overflow-auto max-h-[60vh] mt-4">
-                  <div className="prose prose-sm dark:prose-invert max-w-none">
-
-                  <MarkdownViewer content={finalMarkdown} />
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">{t('finalResult.editLabel')}</label>
+                    <textarea
+                      className="w-full h-96 p-4 border border-border rounded-md bg-background font-mono text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors resize-none"
+                      value={finalMarkdown}
+                      onChange={(e) => setFinalMarkdown(e.target.value)}
+                      placeholder={t('finalResult.placeholder')}
+                    />
                   </div>
-                </div>
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">{t('finalResult.previewLabel')}</label>
+                    <Card className="border-border/50">
+                      <CardContent className="p-6 bg-muted/30 overflow-auto max-h-[60vh]">
+                        <div className="prose prose-sm dark:prose-invert max-w-none">
+                          <MarkdownViewer content={finalMarkdown} />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </CardContent>
+              </Card>
             ) : (
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center">
-                <p className="text-gray-500 dark:text-gray-400">{t('finalResult.noFinalResult')}</p>
-                <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">{t('finalResult.selectAndCombinePrompt')}</p>
-              </div>
+              <Card className="shadow-medium">
+                <CardContent className="p-8 text-center">
+                  <div className="flex flex-col items-center space-y-4">
+                    <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center">
+                      <CheckCircle className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">{t('finalResult.noFinalResult')}</p>
+                      <p className="text-sm text-muted-foreground/70 mt-2">{t('finalResult.selectAndCombinePrompt')}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             )}
           </Tabs.Content>
         </Tabs.Root>

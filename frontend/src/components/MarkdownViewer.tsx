@@ -3,6 +3,7 @@ import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import Image from 'next/image';
 
 const MarkdownViewer: React.FC<{ content: string }> = ({ content }) => {
   return (
@@ -29,12 +30,16 @@ const MarkdownViewer: React.FC<{ content: string }> = ({ content }) => {
           );
         },
         img(props: React.ComponentProps<'img'>) {
+          const src = typeof props.src === 'string' ? props.src : '';
           return (
-            <img
-              {...props}
-              className="max-w-full h-auto my-4 rounded-lg shadow-lg"
-              loading="lazy"
+            <Image
+              src={src}
               alt={props.alt || 'markdown image'}
+              width={800}
+              height={600}
+              className="max-w-full h-auto my-4 rounded-lg shadow-lg"
+              style={{ width: 'auto', height: 'auto' }}
+              unoptimized
             />
           );
         },
