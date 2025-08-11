@@ -15,6 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
+import { logger } from '@/lib/logger';
 
 interface ApiConfig {
   id: string;
@@ -32,7 +33,7 @@ const getModelOptions = () => {
     try {
       return JSON.parse(envModels);
     } catch (e) {
-      console.warn('Failed to parse NEXT_PUBLIC_MODEL_OPTIONS, using defaults:', e);
+      logger.warn('Failed to parse NEXT_PUBLIC_MODEL_OPTIONS, using defaults:', e);
     }
   }
   return [
@@ -87,8 +88,6 @@ export default function Home() {
 
   // Add toast animations when component mounts (client-side only)
   useEffect(() => {
-    console.log('i18n object:', i18n);
-    console.log('Type of i18n.changeLanguage:', typeof i18n.changeLanguage);
     const style = document.createElement('style');
     style.textContent = `
       @keyframes slideIn {
@@ -129,7 +128,6 @@ export default function Home() {
         };
         
         setApiConfigs([defaultConfig]);
-        console.log('Loaded default configuration from environment variables:', defaultConfig);
       }
     }
   }, [apiConfigs.length]);
@@ -249,8 +247,6 @@ export default function Home() {
       formData.append('api_configs', JSON.stringify(apiConfigs));
       
       const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
-      console.log('Using API address:', baseUrl);
-      console.log('Sending API configuration:', JSON.stringify(apiConfigs));
       
       const response = await fetch(`${baseUrl}/api/ocr/stream`, {
         method: 'POST',
@@ -330,7 +326,7 @@ export default function Home() {
                   return updatedStatus;
                 });
               } else if (data.type === 'error') {
-                console.error('Stream error:', data.error);
+                logger.error('Stream error:', data.error);
                 setToastMessage(t('upload.processError', { error: data.error }));
                 setShowToast(true);
               } else if (data.type === 'complete') {
@@ -339,16 +335,15 @@ export default function Home() {
                 setShowToast(true);
               } else if (data.type === 'heartbeat') {
                 // Heartbeat to keep connection alive, no action needed
-                console.log('Received heartbeat');
               }
             } catch (e) {
-              console.error('Error parsing SSE data:', e);
+              logger.error('Error parsing SSE data:', e);
             }
           }
         }
       }
     } catch (error) {
-      console.error('Error processing PDF:', error);
+      logger.error('Error processing PDF:', error);
       setToastMessage(t('upload.processError', { error: error instanceof Error ? error.message : String(error) }));
       setShowToast(true);
     } finally {
