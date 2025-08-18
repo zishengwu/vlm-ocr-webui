@@ -11,11 +11,16 @@ import MarkdownViewer from '@/components/MarkdownViewer';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { logger } from '@/lib/logger';
+
+// Import new components
+import { BatchFileUpload, type BatchFile } from '@/components/BatchFileUpload';
+import { PDFPreview } from '@/components/PDFPreview';
+import { EnhancedProgress } from '@/components/EnhancedProgress';
+import { ResultComparison, type ComparisonResult } from '@/components/ResultComparison';
 
 interface ApiConfig {
   id: string;
@@ -56,6 +61,22 @@ interface OcrResult {
   pageNumber: number;
   markdown: string;
   apiId: string;
+  confidence?: number;
+  processingTime?: number;
+}
+
+interface ProcessingTask {
+  id: string;
+  fileId: string;
+  fileName: string;
+  apiId: string;
+  apiName: string;
+  pageNumber: number;
+  status: 'pending' | 'processing' | 'completed' | 'error';
+  progress: number;
+  startTime?: number;
+  endTime?: number;
+  error?: string;
 }
 
 export default function Home() {
@@ -68,16 +89,29 @@ export default function Home() {
   const [newApiModel, setNewApiModel] = useState('');
   const [customModel, setCustomModel] = useState('');
   const [newApiProvider, setNewApiProvider] = useState('');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  // File management states
+  const [selectedFiles, setSelectedFiles] = useState<BatchFile[]>([]);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null); // Keep for backward compatibility
+  const [currentPreviewFile] = useState<File | null>(null);
+  const [showPDFPreview, setShowPDFPreview] = useState(false);
+  
+  // Processing states
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isBatchProcessing, setIsBatchProcessing] = useState(false);
+  const [processingTasks, setProcessingTasks] = useState<ProcessingTask[]>([]);
   const [results, setResults] = useState<OcrResult[]>([]);
   const [selectedResults, setSelectedResults] = useState<{[key: number]: string}>({});
+  const [favoriteResults, setFavoriteResults] = useState<Set<string>>(new Set());
   const [finalMarkdown, setFinalMarkdown] = useState('');
+  
+  // UI states
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [isAddApiDialogOpen, setIsAddApiDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('config');
+  const [showEnhancedProgress, setShowEnhancedProgress] = useState(false);
   
-  // Stream processing states
+  // Stream processing states (keep for backward compatibility)
   const [streamResults, setStreamResults] = useState<{[key: string]: string}>({});
   const [processingStatus, setProcessingStatus] = useState<{[key: string]: 'pending' | 'processing' | 'completed' | 'error'}>({});
   const [totalImages, setTotalImages] = useState(0);
@@ -410,6 +444,252 @@ export default function Home() {
     setShowToast(true);
   };
 
+  // Batch file processing functions
+  const handleBatchFilesChange = (files: BatchFile[]) => {
+    setSelectedFiles(files);
+  };
+
+  const processBatchFiles = async (files: BatchFile[]) => {
+    if (files.length === 0 || apiConfigs.length === 0) {
+      setToastMessage(t('upload.noFileOrApi'));
+      setShowToast(true);
+      return;
+    }
+
+    setIsBatchProcessing(true);
+    setShowEnhancedProgress(true);
+    
+    // Initialize processing tasks
+    const tasks: ProcessingTask[] = [];
+    files.forEach(file => {
+      apiConfigs.forEach(api => {
+        // Estimate pages (simplified - in real implementation, you'd get this from PDF)
+        const estimatedPages = 1; // This should be calculated from PDF
+        for (let page = 0; page < estimatedPages; page++) {
+          tasks.push({
+            id: `${file.id}-${api.id}-${page}`,
+            fileId: file.id,
+            fileName: file.file.name,
+            apiId: api.id,
+            apiName: api.name,
+            pageNumber: page,
+            status: 'pending',
+            progress: 0,
+            startTime: Date.now()
+          });
+        }
+      });
+    });
+    
+    setProcessingTasks(tasks);
+    
+    // Process files sequentially or in parallel
+    try {
+      for (const file of files) {
+        await processSingleFileInBatch(file);
+      }
+      
+      setToastMessage(t('upload.batchProcessComplete'));
+      setShowToast(true);
+    } catch (error) {
+      logger.error('Batch processing error:', error);
+      setToastMessage(t('upload.batchProcessError'));
+      setShowToast(true);
+    } finally {
+      setIsBatchProcessing(false);
+    }
+  };
+
+  const processSingleFileInBatch = async (file: BatchFile) => {
+    // Update file status
+    setSelectedFiles(prev => prev.map(f => 
+      f.id === file.id ? { ...f, status: 'processing' } : f
+    ));
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file.file);
+      formData.append('api_configs', JSON.stringify(apiConfigs));
+      
+      const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+      
+      const response = await fetch(`${baseUrl}/api/ocr/stream`, {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      // Handle streaming response similar to processPdf
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      
+      if (!reader) {
+        throw new Error('Failed to get response reader');
+      }
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              
+              if (data.type === 'result') {
+                // Update results and task progress
+                const newResult: OcrResult = {
+                  pageNumber: data.page_number,
+                  markdown: data.content,
+                  apiId: data.api_id,
+                  confidence: data.confidence,
+                  processingTime: data.processing_time
+                };
+                
+                setResults(prev => [...prev, newResult]);
+                
+                // Update task status
+                setProcessingTasks(prev => prev.map(task => {
+                  if (task.fileId === file.id && 
+                      task.apiId === data.api_id && 
+                      task.pageNumber === data.page_number) {
+                    return {
+                      ...task,
+                      status: 'completed',
+                      progress: 100,
+                      endTime: Date.now()
+                    };
+                  }
+                  return task;
+                }));
+              }
+            } catch (e) {
+              logger.error('Error parsing batch SSE data:', e);
+            }
+          }
+        }
+      }
+      
+      // Update file status to completed
+      setSelectedFiles(prev => prev.map(f => 
+        f.id === file.id ? { ...f, status: 'completed', progress: 100 } : f
+      ));
+      
+    } catch (error) {
+      logger.error('Error processing file in batch:', error);
+      
+      // Update file status to error
+      setSelectedFiles(prev => prev.map(f => 
+        f.id === file.id ? { 
+          ...f, 
+          status: 'error', 
+          error: error instanceof Error ? error.message : String(error)
+        } : f
+      ));
+    }
+  };
+
+
+
+  // Result comparison functions
+  const convertToComparisonResults = (): ComparisonResult[] => {
+    return results.map(result => ({
+      id: `${result.apiId}-${result.pageNumber}`,
+      apiName: apiConfigs.find(api => api.id === result.apiId)?.name || 'Unknown API',
+      provider: apiConfigs.find(api => api.id === result.apiId)?.provider || 'Unknown',
+      pageNumber: result.pageNumber,
+      content: result.markdown,
+      confidence: result.confidence,
+      processingTime: result.processingTime,
+      isSelected: selectedResults[result.pageNumber] === result.apiId,
+      isFavorite: favoriteResults.has(`${result.apiId}-${result.pageNumber}`)
+    }));
+  };
+
+  const handleResultSelect = (resultId: string, pageNumber: number) => {
+    const apiId = resultId.split('-')[0];
+    selectResult(pageNumber, apiId);
+  };
+
+  const handleResultFavorite = (resultId: string) => {
+    setFavoriteResults(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(resultId)) {
+        newSet.delete(resultId);
+      } else {
+        newSet.add(resultId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleCopyResult = (content: string) => {
+    navigator.clipboard.writeText(content);
+    setToastMessage(t('results.copied'));
+    setShowToast(true);
+  };
+
+  const handleDownloadResult = (content: string, fileName: string) => {
+    const blob = new Blob([content], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    setToastMessage(t('results.downloaded'));
+    setShowToast(true);
+  };
+
+  // Calculate processing statistics
+  const getProcessingStats = () => {
+    const totalTasks = processingTasks.length;
+    const completedTasks = processingTasks.filter(t => t.status === 'completed').length;
+    const errorTasks = processingTasks.filter(t => t.status === 'error').length;
+    const processingTasksCount = processingTasks.filter(t => t.status === 'processing').length;
+    const pendingTasks = processingTasks.filter(t => t.status === 'pending').length;
+    
+    const totalFiles = selectedFiles.length;
+    const totalPages = Math.max(1, totalImages); // Use totalImages from stream or estimate
+    const totalApis = apiConfigs.length;
+    
+    const startTime = Math.min(...processingTasks.map(t => t.startTime || Date.now()));
+    const elapsedTime = Date.now() - startTime;
+    
+    const avgTimePerTask = completedTasks > 0 
+      ? processingTasks
+          .filter(t => t.status === 'completed' && t.startTime && t.endTime)
+          .reduce((sum, t) => sum + (t.endTime! - t.startTime!), 0) / completedTasks
+      : 0;
+    
+    const estimatedRemainingTime = avgTimePerTask > 0 
+      ? (totalTasks - completedTasks) * avgTimePerTask
+      : 0;
+    
+    return {
+      totalFiles,
+      totalPages,
+      totalApis,
+      totalTasks,
+      completedTasks,
+      errorTasks,
+      processingTasks: processingTasksCount,
+      pendingTasks,
+      elapsedTime,
+      estimatedRemainingTime,
+      progress: totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0
+    };
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
@@ -417,8 +697,19 @@ export default function Home() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 space-y-8">
-        <Tabs.Root defaultValue="upload" className="flex flex-col">
+        <Tabs.Root value={activeTab} onValueChange={setActiveTab} className="flex flex-col">
           <Tabs.List className="flex border-b border-border mb-8 bg-muted/30 rounded-lg p-1 w-fit">
+            <Tabs.Trigger 
+              value="config" 
+              className={cn(
+                "px-6 py-3 font-medium text-sm rounded-md transition-all duration-200",
+                "data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm",
+                "data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-muted/50"
+              )}
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              {t('tabs.config')}
+            </Tabs.Trigger>
             <Tabs.Trigger 
               value="upload" 
               className={cn(
@@ -429,6 +720,22 @@ export default function Home() {
             >
               <Upload className="w-4 h-4 mr-2" />
               {t('tabs.upload')}
+            </Tabs.Trigger>
+            <Tabs.Trigger 
+              value="batch" 
+              className={cn(
+                "px-6 py-3 font-medium text-sm rounded-md transition-all duration-200",
+                "data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm",
+                "data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-muted/50"
+              )}
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              {t('tabs.batch')}
+              {selectedFiles.length > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  {selectedFiles.length}
+                </Badge>
+              )}
             </Tabs.Trigger>
             <Tabs.Trigger 
               value="results" 
@@ -463,9 +770,8 @@ export default function Home() {
             </Tabs.Trigger>
           </Tabs.List>
 
-          {/* Upload & Process Tab */}
-          <Tabs.Content value="upload" className="space-y-8">
-            {/* API Configuration Section */}
+          {/* API Configuration Tab */}
+          <Tabs.Content value="config" className="space-y-8">
             <Card className="shadow-medium hover:shadow-hard transition-shadow duration-300">
               <CardHeader>
                 <div className="flex justify-between items-center">
@@ -639,7 +945,10 @@ export default function Home() {
                 )}
               </CardContent>
             </Card>
+          </Tabs.Content>
 
+          {/* Single File Upload Tab */}
+          <Tabs.Content value="upload" className="space-y-8">
             {/* File Upload Section */}
             <Card className="shadow-medium hover:shadow-hard transition-shadow duration-300">
               <CardHeader>
@@ -706,6 +1015,117 @@ export default function Home() {
                 </div>
               </CardContent>
             </Card>
+          </Tabs.Content>
+
+          {/* Batch Processing Tab */}
+          <Tabs.Content value="batch" className="space-y-8">
+            <Card className="shadow-medium hover:shadow-hard transition-shadow duration-300">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="w-5 h-5" />
+                  {t('batch.title')}
+                </CardTitle>
+                <CardDescription>
+                  {t('batch.description')}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <BatchFileUpload
+                  files={selectedFiles}
+                  onFilesChange={handleBatchFilesChange}
+                  onProcessFiles={processBatchFiles}
+                  isProcessing={isBatchProcessing}
+                  maxFiles={10}
+                />
+              </CardContent>
+            </Card>
+
+            {/* Enhanced Progress Display */}
+            {(isBatchProcessing || processingTasks.length > 0) && (
+              <Card className="shadow-medium border-primary/20">
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="flex items-center gap-2">
+                      <Clock className="w-5 h-5 animate-pulse" />
+                      {t('progress.title')}
+                    </CardTitle>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowEnhancedProgress(!showEnhancedProgress)}
+                    >
+                      {showEnhancedProgress ? (
+                        <>
+                          <EyeOff className="w-4 h-4 mr-2" />
+                          {t('progress.hideDetails')}
+                        </>
+                      ) : (
+                        <>
+                          <Eye className="w-4 h-4 mr-2" />
+                          {t('progress.showDetails')}
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {showEnhancedProgress ? (
+                    <EnhancedProgress
+                      tasks={processingTasks}
+                      totalFiles={getProcessingStats().totalFiles}
+                      totalPages={getProcessingStats().totalPages}
+                      totalApis={getProcessingStats().totalApis}
+                      isProcessing={isBatchProcessing}
+                    />
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-4 gap-4 text-center">
+                        <div>
+                          <div className="text-2xl font-bold text-primary">{getProcessingStats().totalFiles}</div>
+                          <div className="text-sm text-muted-foreground">{t('progress.files')}</div>
+                        </div>
+                        <div>
+                          <div className="text-2xl font-bold text-primary">{getProcessingStats().totalPages}</div>
+                          <div className="text-sm text-muted-foreground">{t('progress.pages')}</div>
+                        </div>
+                        <div>
+                          <div className="text-2xl font-bold text-primary">{getProcessingStats().totalApis}</div>
+                          <div className="text-sm text-muted-foreground">{t('progress.apis')}</div>
+                        </div>
+                        <div>
+                          <div className="text-2xl font-bold text-primary">{getProcessingStats().completedTasks}</div>
+                          <div className="text-sm text-muted-foreground">{t('progress.completed')}</div>
+                        </div>
+                      </div>
+                      <Progress value={getProcessingStats().progress} className="w-full" />
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* PDF Preview Dialog */}
+            {showPDFPreview && currentPreviewFile && (
+              <Dialog.Root open={showPDFPreview} onOpenChange={setShowPDFPreview}>
+                <Dialog.Portal>
+                  <Dialog.Overlay className="fixed inset-0 bg-black/50" />
+                  <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-auto">
+                    <Dialog.Title className="text-xl font-semibold mb-4">
+                      {t('preview.title')} - {currentPreviewFile.name}
+                    </Dialog.Title>
+                    <PDFPreview file={currentPreviewFile} />
+                    <div className="flex justify-end mt-4">
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowPDFPreview(false)}
+                      >
+                        {t('common.close')}
+                      </Button>
+                    </div>
+                  </Dialog.Content>
+                </Dialog.Portal>
+              </Dialog.Root>
+            )}
           </Tabs.Content>
 
           {/* Results Tab */}
@@ -885,6 +1305,43 @@ export default function Home() {
                        </CardContent>
                      </Card>
                    ))}
+                </CardContent>
+              </Card>
+            )}
+          </Tabs.Content>
+
+          {/* Enhanced Result Comparison Tab */}
+          <Tabs.Content value="comparison" className="space-y-8">
+            {results.length > 0 ? (
+              <Card className="shadow-medium hover:shadow-hard transition-shadow duration-300">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Zap className="w-5 h-5" />
+                    {t('comparison.title')}
+                  </CardTitle>
+                  <CardDescription>
+                    {t('comparison.description')}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ResultComparison
+                    results={convertToComparisonResults()}
+                    selectedResults={selectedResults}
+                    onResultSelect={handleResultSelect}
+                    onResultFavorite={handleResultFavorite}
+                    onCopyResult={handleCopyResult}
+                    onDownloadResult={handleDownloadResult}
+                  />
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="shadow-medium">
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <FileText className="w-16 h-16 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">{t('comparison.noResults')}</h3>
+                  <p className="text-muted-foreground text-center">
+                    {t('comparison.noResultsDescription')}
+                  </p>
                 </CardContent>
               </Card>
             )}

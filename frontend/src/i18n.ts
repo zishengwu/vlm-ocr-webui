@@ -7,8 +7,11 @@ const resources = {
       title: 'VLM-OCR: Intelligent PDF Document Recognition System',
       subtitle: 'Upload PDF and extract text with VLM OCR',
       tabs: {
+        config: 'Configuration',
         upload: 'Upload & Process',
+        batch: 'Batch Processing',
         results: 'OCR Results',
+        comparison: 'Result Comparison',
         final: 'Final Result'
       },
       upload: {
@@ -75,10 +78,6 @@ const resources = {
         customModelPlaceholder: 'Enter custom model name',
         requiredFields: 'API name and endpoint URL are required'
       },
-      common: {
-        cancel: 'Cancel',
-        add: 'Add'
-      },
       message: {
         pending: 'Pending',
         processing: 'Processing',
@@ -90,6 +89,80 @@ const resources = {
         currentPage: 'Current Page',
         processingDescription: 'Processing your PDF document, please wait...',
         progressLabel: 'Processing Progress'
+      },
+      batch: {
+        title: 'Batch File Processing',
+        description: 'Upload and process multiple PDF files simultaneously',
+        dragDrop: 'Drag & drop PDF files or click to upload',
+        maxFiles: 'Maximum {{max}} files',
+        processing: 'Processing',
+        completed: 'Completed',
+        error: 'Error',
+        pending: 'Pending',
+        remove: 'Remove',
+        preview: 'Preview',
+        processAll: 'Process All Files',
+        clearAll: 'Clear All',
+        fileCount: '{{count}} files selected'
+      },
+      progress: {
+        title: 'Processing Progress',
+        showDetails: 'Show Details',
+        hideDetails: 'Hide Details',
+        files: 'Files',
+        pages: 'Pages',
+        apis: 'APIs',
+        completed: 'Completed',
+        overall: 'Overall Progress',
+        pending: 'Pending',
+        processing: 'Processing',
+        errors: 'Errors',
+        elapsed: 'Elapsed',
+        average: 'Average',
+        remaining: 'Remaining',
+        page: 'Page',
+        taskDetails: 'Task Details'
+      },
+      comparison: {
+        title: 'Enhanced Result Comparison',
+        description: 'Compare and analyze OCR results from different APIs',
+        noResults: 'No Results Available',
+        noResultsDescription: 'Process some PDF files first to see comparison results here.',
+        viewMode: 'View Mode',
+        grid: 'Grid View',
+        list: 'List View',
+        compare: 'Compare Selected',
+        selectForComparison: 'Select for Comparison',
+        favorite: 'Favorite',
+        unfavorite: 'Unfavorite',
+        copy: 'Copy',
+        download: 'Download',
+        confidence: 'Confidence',
+        processingTime: 'Processing Time',
+        wordCount: 'Word Count',
+        similarity: 'Similarity',
+        analysis: 'Analysis'
+      },
+      preview: {
+        title: 'PDF Preview',
+        loading: 'Loading PDF...',
+        error: 'Error loading PDF',
+        page: 'Page {{current}} of {{total}}',
+        zoom: 'Zoom',
+        rotate: 'Rotate',
+        previous: 'Previous',
+        next: 'Next'
+      },
+      common: {
+        close: 'Close',
+        cancel: 'Cancel',
+        add: 'Add',
+        save: 'Save',
+        delete: 'Delete',
+        edit: 'Edit',
+        view: 'View',
+        select: 'Select',
+        selected: 'Selected'
       }
     }
   },
@@ -98,8 +171,11 @@ const resources = {
       title: 'VLM-OCR: 智能PDF文档识别与处理系统',
       subtitle: '上传PDF并使用VLM OCR提取文本',
       tabs: {
+        config: '配置管理',
         upload: '上传与处理',
+        batch: '批量处理',
         results: 'OCR结果',
+        comparison: '结果比较',
         final: '最终结果'
       },
       upload: {
@@ -166,10 +242,6 @@ const resources = {
         customModelPlaceholder: '输入自定义模型名称',
         requiredFields: 'API名称和端点URL是必填项'
       },
-      common: {
-        cancel: '取消',
-        add: '添加'
-      },
       message: {
         pending: '待处理',
         processing: '处理中',
@@ -181,6 +253,80 @@ const resources = {
         currentPage: '当前页数',
         processingDescription: '正在处理您的PDF文档，请稍候...',
         progressLabel: '处理进度'
+      },
+      batch: {
+        title: '批量文件处理',
+        description: '同时上传和处理多个PDF文件',
+        dragDrop: '拖放PDF文件或点击上传',
+        maxFiles: '最多{{max}}个文件',
+        processing: '处理中',
+        completed: '已完成',
+        error: '错误',
+        pending: '待处理',
+        remove: '移除',
+        preview: '预览',
+        processAll: '处理所有文件',
+        clearAll: '清空所有',
+        fileCount: '已选择{{count}}个文件'
+      },
+      progress: {
+        title: '处理进度',
+        showDetails: '显示详情',
+        hideDetails: '隐藏详情',
+        files: '文件',
+        pages: '页面',
+        apis: 'API',
+        completed: '已完成',
+        overall: '总体进度',
+        pending: '待处理',
+        processing: '处理中',
+        errors: '错误',
+        elapsed: '已用时',
+        average: '平均',
+        remaining: '剩余',
+        page: '页面',
+        taskDetails: '任务详情'
+      },
+      comparison: {
+        title: '增强结果比较',
+        description: '比较和分析不同API的OCR结果',
+        noResults: '暂无结果',
+        noResultsDescription: '请先处理一些PDF文件以查看比较结果。',
+        viewMode: '查看模式',
+        grid: '网格视图',
+        list: '列表视图',
+        compare: '比较选中项',
+        selectForComparison: '选择比较',
+        favorite: '收藏',
+        unfavorite: '取消收藏',
+        copy: '复制',
+        download: '下载',
+        confidence: '置信度',
+        processingTime: '处理时间',
+        wordCount: '字数',
+        similarity: '相似度',
+        analysis: '分析'
+      },
+      preview: {
+        title: 'PDF预览',
+        loading: '加载PDF中...',
+        error: '加载PDF出错',
+        page: '第{{current}}页，共{{total}}页',
+        zoom: '缩放',
+        rotate: '旋转',
+        previous: '上一页',
+        next: '下一页'
+      },
+      common: {
+        close: '关闭',
+        cancel: '取消',
+        add: '添加',
+        save: '保存',
+        delete: '删除',
+        edit: '编辑',
+        view: '查看',
+        select: '选择',
+        selected: '已选择'
       }
     }
   }
